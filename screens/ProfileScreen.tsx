@@ -13,7 +13,7 @@ const ProfileScreen = () => {
     'Payment method',
     'Favorites',
     'Calendar',
-    'History',
+    'Settings',
     'Help and support',
   ];
 
