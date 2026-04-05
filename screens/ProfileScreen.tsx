@@ -27,7 +27,7 @@ const ProfileScreen = () => {
             </View>
 
             <View style={styles.userInfo}>
-              <Text style={styles.name}>Abdulla Ali</Text>
+              <Text style={styles.name}>Abdulla Albahrani</Text>
               <Text style={styles.country}>🇧🇭 Bahrain</Text>
             </View>
           </View>
@@ -35,8 +35,15 @@ const ProfileScreen = () => {
 
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.menuItem}>
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.menuItem,
+                index === menuItems.length - 1 && styles.lastMenuItem,
+              ]}
+            >
               <Text style={styles.menuText}>{item}</Text>
+              <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -45,6 +52,23 @@ const ProfileScreen = () => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={styles.tabItem}>
+          <Text style={styles.tabIcon}>⌂</Text>
+          <Text style={styles.tabText}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem}>
+          <Text style={styles.tabIcon}>🕘</Text>
+          <Text style={styles.tabText}>History</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.tabItem, styles.activeTab]}>
+          <Text style={[styles.tabIcon, styles.activeTabText]}>👤</Text>
+          <Text style={[styles.tabText, styles.activeTabText]}>Account</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -59,7 +83,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 120,
   },
   headerCard: {
     backgroundColor: '#161616',
@@ -102,20 +126,31 @@ const styles = StyleSheet.create({
   menuContainer: {
     backgroundColor: '#161616',
     borderRadius: 24,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#2A2A2A',
+    overflow: 'hidden',
   },
   menuItem: {
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#2A2A2A',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lastMenuItem: {
+    borderBottomWidth: 0,
   },
   menuText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  arrow: {
+    color: '#12CFFF',
+    fontSize: 22,
+    fontWeight: '600',
   },
   logoutButton: {
     marginTop: 24,
@@ -127,6 +162,43 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#000000',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  bottomTabBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#161616',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
+  activeTab: {
+    backgroundColor: '#12CFFF',
+  },
+  tabIcon: {
+    fontSize: 18,
+    color: '#BDBDBD',
+    marginBottom: 4,
+  },
+  tabText: {
+    fontSize: 13,
+    color: '#BDBDBD',
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#000000',
     fontWeight: '700',
   },
 });
