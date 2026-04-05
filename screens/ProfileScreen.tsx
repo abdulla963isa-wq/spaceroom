@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 
 const ProfileScreen = () => {
@@ -18,28 +19,32 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>A</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerCard}>
+          <View style={styles.profileTopRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>A</Text>
+            </View>
+
+            <View style={styles.userInfo}>
+              <Text style={styles.name}>Abdulla Ali</Text>
+              <Text style={styles.country}>🇧🇭 Bahrain</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.userInfo}>
-          <Text style={styles.name}>Abdulla Ali</Text>
-          <Text style={styles.country}>🇧🇭 Bahrain</Text>
+        <View style={styles.menuContainer}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity key={index} style={styles.menuItem}>
+              <Text style={styles.menuText}>{item}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
 
-      <View style={styles.menu}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity key={index} style={styles.menuItem}>
-            <Text style={styles.menuText}>{item}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity style={styles.logout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 };
@@ -49,66 +54,78 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingTop: 50,
+    backgroundColor: '#0D0D0D',
   },
-  header: {
+  scrollContent: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  headerCard: {
+    backgroundColor: '#161616',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
   },
   avatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    backgroundColor: '#BDE0FE',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#12CFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 20,
-    fontWeight: '700',
     color: '#000000',
+    fontSize: 24,
+    fontWeight: '700',
   },
   userInfo: {
-    marginLeft: 15,
+    marginLeft: 16,
   },
   name: {
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
   },
   country: {
+    color: '#BDBDBD',
+    fontSize: 15,
     marginTop: 4,
-    fontSize: 14,
-    color: '#666666',
   },
-  menu: {
-    marginTop: 10,
+  menuContainer: {
+    backgroundColor: '#161616',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
   menuItem: {
-    paddingVertical: 18,
+    paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: '#2A2A2A',
   },
   menuText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    color: '#000000',
+    fontWeight: '500',
   },
-  logout: {
-    marginTop: 30,
-    marginHorizontal: 20,
-    backgroundColor: '#E57373',
-    paddingVertical: 15,
-    borderRadius: 8,
+  logoutButton: {
+    marginTop: 24,
+    backgroundColor: '#12CFFF',
+    borderRadius: 18,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   logoutText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 16,
     fontWeight: '700',
   },
