@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
+
 type SpaceOption = {
   id: string;
   title: string;
@@ -23,6 +24,7 @@ type SpaceOption = {
 };
 
 const SpaceDetailsScreen = () => {
+const navigation = useNavigation<any>();
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const toggleFavorite = (id: string) => {
@@ -191,9 +193,12 @@ const SpaceDetailsScreen = () => {
                   <Text style={styles.optionPrice}>{option.price}</Text>
                   <Text style={styles.optionAvailability}>{option.availability}</Text>
 
-                  <TouchableOpacity style={styles.bookButton}>
-                    <Text style={styles.bookButtonText}>Book Now</Text>
-                  </TouchableOpacity>
+                  <TouchableOpacity
+  style={styles.bookButton}
+  onPress={() => navigation.navigate("Booking")}
+>
+  <Text style={styles.bookButtonText}>Book Now</Text>
+</TouchableOpacity>
                 </View>
               </View>
             );

@@ -7,8 +7,10 @@ import {
   View,
 } from "react-native";
 import { COLORS } from "../constants/colors";
+import { useNavigation } from "@react-navigation/native";
 
 const BookingSuccessScreen = () => {
+  const navigation = useNavigation<any>();
   const booking = {
     venueName: "Diwan Hub, Adliya",
     spaceName: "Board Room",
@@ -68,13 +70,21 @@ const BookingSuccessScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8}>
-          <Text style={styles.primaryButtonText}>View Booking</Text>
-        </TouchableOpacity>
+       <TouchableOpacity
+  style={styles.primaryButton}
+  activeOpacity={0.8}
+  onPress={() => navigation.navigate("MainTabs", { screen: "Bookings" })}
+>
+  <Text style={styles.primaryButtonText}>View Booking</Text>
+</TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
-          <Text style={styles.secondaryButtonText}>Back to Home</Text>
-        </TouchableOpacity>
+<TouchableOpacity
+  style={styles.secondaryButton}
+  activeOpacity={0.8}
+  onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+>
+  <Text style={styles.secondaryButtonText}>Back to Home</Text>
+</TouchableOpacity>
       </View>
     </SafeAreaView>
   );

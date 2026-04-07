@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomNav from "../components/BottomNav";
+import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
+import BottomNav from "../components/BottomNav";
 
 type DateItem = {
   id: string;
@@ -19,6 +20,8 @@ type DateItem = {
 };
 
 const BookingScreen = () => {
+const navigation = useNavigation<any>();
+
   const bookingItem = {
     venueName: "Diwan Hub, Adliya",
     spaceName: "Meeting Room",
@@ -250,9 +253,13 @@ const BookingScreen = () => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.confirmButton} activeOpacity={0.8}>
-            <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-          </TouchableOpacity>
+         <TouchableOpacity
+  style={styles.confirmButton}
+  activeOpacity={0.8}
+  onPress={() => navigation.navigate("BookingSuccess")}
+>
+  <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+</TouchableOpacity>
         </ScrollView>
 
         <BottomNav activeTab=" My Bookings" />
