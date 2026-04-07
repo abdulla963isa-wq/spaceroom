@@ -1,9 +1,12 @@
 import React from "react";
 import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { enableScreens } from "react-native-screens";
 import { COLORS } from "../constants/colors";
+
+enableScreens();
 
 import HomeScreen from "../screens/HomeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
@@ -25,7 +28,7 @@ export type MainTabParamList = {
   Account: undefined;
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function CustomTabBar({ state, navigation }: any) {

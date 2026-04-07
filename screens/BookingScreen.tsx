@@ -262,7 +262,7 @@ const navigation = useNavigation<any>();
 </TouchableOpacity>
         </ScrollView>
 
-        <BottomNav activeTab=" My Bookings" />
+        <BottomNav activeTab="My Bookings" />
       </View>
     </SafeAreaView>
   );

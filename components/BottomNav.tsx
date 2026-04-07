@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/colors";
 
 type BottomNavProps = {
-  activeTab: "Home" | " My Bookings" | "Account";
+  activeTab: "Home" | "My Bookings" | "Account";
 };
 
 const BottomNav = ({ activeTab }: BottomNavProps) => {
@@ -22,16 +22,16 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.tabItem, activeTab === " My Bookings" && styles.activeTab]}
+        style={[styles.tabItem, activeTab === "My Bookings" && styles.activeTab]}
         activeOpacity={0.8}
       >
         <Text
-          style={[styles.tabIcon, activeTab === " My Bookings" && styles.activeTabText]}
+          style={[styles.tabIcon, activeTab === "My Bookings" && styles.activeTabText]}
         >
           🗓️
         </Text>
         <Text
-          style={[styles.tabText, activeTab === " My Bookings" && styles.activeTabText]}
+          style={[styles.tabText, activeTab === "My Bookings" && styles.activeTabText]}
         >
           My Bookings
         </Text>

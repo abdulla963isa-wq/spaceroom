@@ -1,0 +1,7 @@
+--------- beginning of main
+04-08 01:49:52.006 11743 11786 I ReactNativeJS: Running "spaceroom_clean" with {"rootTag":1,"initialProps":{},"fabric":true}
+04-08 01:49:52.075 11743 11786 I ReactNativeJS: [App] render
+04-08 01:49:52.076 11743 11786 I ReactNativeJS: [AppNavigator] render
+04-08 01:49:52.180 11743 11786 I ReactNativeJS: [MainTabs] render
+04-08 01:49:52.191 11743 11786 I ReactNativeJS: [HomeScreen] render
+04-08 01:49:52.196 11743 11786 W ReactNativeJS: SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
