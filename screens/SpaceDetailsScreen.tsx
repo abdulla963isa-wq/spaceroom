@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Image,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 type SpaceOption = {
   id: string;

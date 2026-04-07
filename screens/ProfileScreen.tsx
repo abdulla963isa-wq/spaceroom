@@ -1,204 +1,209 @@
-import React from 'react';
+import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  SafeAreaView,
   ScrollView,
-} from 'react-native';
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { COLORS } from "../constants/colors";
 
 const ProfileScreen = () => {
   const menuItems = [
-    'My account',
-    'Payment method',
-    'Favorites',
-    'Calendar',
-    'Settings',
-    'Help and support',
+    {
+      id: "1",
+      icon: "👤",
+      title: "Personal Details",
+      subtitle: "Manage your account information",
+    },
+    {
+      id: "2",
+      icon: "💳",
+      title: "Payment Methods",
+      subtitle: "Cards and payment options",
+    },
+    {
+      id: "3",
+      icon: "🕘",
+      title: "History",
+      subtitle: "View your past bookings",
+    },
+    {
+      id: "4",
+      icon: "⚙️",
+      title: "Settings",
+      subtitle: "App preferences and options",
+    },
+    {
+      id: "5",
+      icon: "❓",
+      title: "Help & Support",
+      subtitle: "Get help or contact support",
+    },
   ];
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerCard}>
-          <View style={styles.profileTopRow}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>A</Text>
             </View>
 
-            <View style={styles.userInfo}>
-              <Text style={styles.name}>Abdulla Albahrani</Text>
-              <Text style={styles.country}>🇧🇭 Bahrain</Text>
-            </View>
+            <Text style={styles.name}>Abdulla Albahrani</Text>
+            <Text style={styles.email}>abdulla@example.com</Text>
           </View>
-        </View>
 
-        <View style={styles.menuContainer}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.menuItem,
-                index === menuItems.length - 1 && styles.lastMenuItem,
-              ]}
-            >
-              <Text style={styles.menuText}>{item}</Text>
-              <Text style={styles.arrow}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          <View style={styles.section}>
+            {menuItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuCard}
+                activeOpacity={0.8}
+              >
+                <View style={styles.menuLeft}>
+                  <View style={styles.iconWrapper}>
+                    <Text style={styles.icon}>{item.icon}</Text>
+                  </View>
 
-        <TouchableOpacity style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </ScrollView>
+                  <View style={styles.textWrapper}>
+                    <Text style={styles.menuTitle}>{item.title}</Text>
+                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  </View>
+                </View>
 
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem}>
-          <Text style={styles.tabIcon}>⌂</Text>
-          <Text style={styles.tabText}>Home</Text>
-        </TouchableOpacity>
+                <Text style={styles.arrow}>›</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <TouchableOpacity style={styles.tabItem}>
-          <Text style={styles.tabIcon}>🕘</Text>
-          <Text style={styles.tabText}>History</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.tabItem, styles.activeTab]}>
-          <Text style={[styles.tabIcon, styles.activeTabText]}>👤</Text>
-          <Text style={[styles.tabText, styles.activeTabText]}>Account</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8}>
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0D0D0D',
   },
   scrollContent: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  headerCard: {
-    backgroundColor: '#161616',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  profileTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  header: {
+    alignItems: "center",
+    paddingTop: 60,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#12CFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   avatarText: {
-    color: '#000000',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  userInfo: {
-    marginLeft: 16,
+    fontSize: 30,
+    fontWeight: "800",
+    color: COLORS.black,
   },
   name: {
-    color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: 6,
   },
-  country: {
-    color: '#BDBDBD',
-    fontSize: 15,
-    marginTop: 4,
+  email: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
-  menuContainer: {
-    backgroundColor: '#161616',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    overflow: 'hidden',
-  },
-  menuItem: {
-    paddingVertical: 20,
+  section: {
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingBottom: 18,
   },
-  lastMenuItem: {
-    borderBottomWidth: 0,
-  },
-  menuText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  arrow: {
-    color: '#12CFFF',
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  logoutButton: {
-    marginTop: 24,
-    backgroundColor: '#12CFFF',
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  logoutText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  bottomTabBar: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#161616',
+  menuCard: {
+    backgroundColor: COLORS.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    borderColor: COLORS.border,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  tabItem: {
+  menuLeft: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 18,
   },
-  activeTab: {
-    backgroundColor: '#12CFFF',
+  iconWrapper: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
   },
-  tabIcon: {
-    fontSize: 18,
-    color: '#BDBDBD',
+  icon: {
+    fontSize: 20,
+  },
+  textWrapper: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
-  tabText: {
+  menuSubtitle: {
     fontSize: 13,
-    color: '#BDBDBD',
-    fontWeight: '500',
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
-  activeTabText: {
-    color: '#000000',
-    fontWeight: '700',
+  arrow: {
+    fontSize: 24,
+    color: COLORS.textSecondary,
+    marginLeft: 12,
+  },
+  logoutButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+  },
+  logoutText: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

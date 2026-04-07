@@ -1,8 +1,6 @@
-import React from 'react';
-import ProfileScreen from './screens/SpaceDetailsScreen';
+import React from "react";
+import AppNavigator from "./navigation/AppNavigator";
 
-const App = () => {
-  return <ProfileScreen />;
-};
-
-export default App;
+export default function App() {
+  return <AppNavigator />;
+}
