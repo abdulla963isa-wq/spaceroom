@@ -9,8 +9,8 @@ import {
   Image,
 } from 'react-native';
 
-import diwanImg from '../assets/images/diwan.jpg';
-import savoyImg from '../assets/images/savoy.jpg';
+const diwanImg = require('../assets/images/diwan.jpg');
+const savoyImg = require('../assets/images/savoy.jpg');
 
 const HomeScreen = () => {
   const categories = ['Work', 'Study', 'Meetings', 'Events'];
