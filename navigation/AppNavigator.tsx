@@ -8,12 +8,12 @@ import { COLORS } from "../constants/colors";
 
 enableScreens();
 
-import HomeScreen from "../screens/HomeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SpaceDetailsScreen from "../screens/SpaceDetailsScreen";
 import BookingScreen from "../screens/BookingScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
+import RegisterScreen from "../screens/Auth/RegisterScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -69,7 +69,7 @@ function MainTabs() {
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={RegisterScreen} />
       <Tab.Screen name="Bookings" component={MyBookingsScreen} />
       <Tab.Screen name="Account" component={ProfileScreen} />
     </Tab.Navigator>
