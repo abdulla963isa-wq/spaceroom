@@ -5,14 +5,17 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { enableScreens } from "react-native-screens";
 import { COLORS } from "../constants/colors";
+import { AuthProvider } from "../context/AuthContext";
 
 enableScreens();
 
+import HomeScreen1 from "../screens/HomeScreen1";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SpaceDetailsScreen from "../screens/SpaceDetailsScreen";
 import BookingScreen from "../screens/BookingScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
+import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 
 export type RootStackParamList = {
@@ -20,6 +23,8 @@ export type RootStackParamList = {
   SpaceDetails: undefined;
   Booking: undefined;
   BookingSuccess: undefined;
+  Login: undefined;
+  Register: undefined;
 };
 
 export type MainTabParamList = {
@@ -42,7 +47,6 @@ function CustomTabBar({ state, navigation }: any) {
     <View style={styles.bottomTabBar}>
       {tabs.map((tab, index) => {
         const isFocused = state.index === index;
-
         return (
           <TouchableOpacity
             key={tab.name}
@@ -66,10 +70,11 @@ function CustomTabBar({ state, navigation }: any) {
 function MainTabs() {
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tab.Screen name="Home" component={RegisterScreen} />
+      <Tab.Screen name="Home" component={HomeScreen1} />
       <Tab.Screen name="Bookings" component={MyBookingsScreen} />
       <Tab.Screen name="Account" component={ProfileScreen} />
     </Tab.Navigator>
@@ -78,14 +83,18 @@ function MainTabs() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
-        <Stack.Screen name="Booking" component={BookingScreen} />
-        <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AuthProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
+          <Stack.Screen name="Booking" component={BookingScreen} />
+          <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
 
