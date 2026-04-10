@@ -8,8 +8,21 @@ import {
   View,
 } from "react-native";
 import { COLORS } from "../constants/colors";
+import { useAuth } from "../context/AuthContext";
 
 const ProfileScreen = () => {
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // ✅ REAL USER DATA FROM FIREBASE
+  const fullName = user?.displayName || "User";
+  const email = user?.email || "No email";
+
+  const initial = fullName?.charAt(0)?.toUpperCase() || "U";
+
   const menuItems = [
     {
       id: "1",
@@ -47,19 +60,20 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
         <ScrollView
-          style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* HEADER */}
           <View style={styles.header}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>A</Text>
+              <Text style={styles.avatarText}>{initial}</Text>
             </View>
 
-            <Text style={styles.name}>Abdulla Albahrani</Text>
-            <Text style={styles.email}>abdulla@example.com</Text>
+            <Text style={styles.name}>{fullName}</Text>
+            <Text style={styles.email}>{email}</Text>
           </View>
 
+          {/* MENU */}
           <View style={styles.section}>
             {menuItems.map((item) => (
               <TouchableOpacity
@@ -74,7 +88,9 @@ const ProfileScreen = () => {
 
                   <View style={styles.textWrapper}>
                     <Text style={styles.menuTitle}>{item.title}</Text>
-                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                    <Text style={styles.menuSubtitle}>
+                      {item.subtitle}
+                    </Text>
                   </View>
                 </View>
 
@@ -83,7 +99,12 @@ const ProfileScreen = () => {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8}>
+          {/* LOGOUT */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            activeOpacity={0.8}
+            onPress={handleLogout}
+          >
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -103,18 +124,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  container: {
-    flex: 1,
-  },
   scrollContent: {
     paddingBottom: 120,
   },
+
   header: {
     alignItems: "center",
     paddingTop: 60,
     paddingBottom: 28,
     paddingHorizontal: 20,
   },
+
   avatar: {
     width: 88,
     height: 88,
@@ -124,25 +144,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+
   avatarText: {
     fontSize: 30,
     fontWeight: "800",
     color: COLORS.black,
   },
+
   name: {
     fontSize: 24,
     fontWeight: "800",
     color: COLORS.textPrimary,
     marginBottom: 6,
   },
+
   email: {
     fontSize: 14,
     color: COLORS.textSecondary,
   },
+
   section: {
     paddingHorizontal: 20,
     paddingBottom: 18,
   },
+
   menuCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 24,
@@ -154,11 +179,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   menuLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
   },
+
   iconWrapper: {
     width: 46,
     height: 46,
@@ -168,28 +195,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 14,
   },
+
   icon: {
     fontSize: 20,
   },
+
   textWrapper: {
     flex: 1,
   },
+
   menuTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: COLORS.textPrimary,
     marginBottom: 4,
   },
+
   menuSubtitle: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    lineHeight: 18,
   },
+
   arrow: {
     fontSize: 24,
     color: COLORS.textSecondary,
-    marginLeft: 12,
   },
+
   logoutButton: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -201,6 +232,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.surface,
   },
+
   logoutText: {
     color: COLORS.textPrimary,
     fontSize: 16,

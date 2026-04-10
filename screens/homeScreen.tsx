@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -19,6 +19,9 @@ const savoyImg = require("../assets/images/savoy.jpg");
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
 
+  // ✅ FIX 1: state for selected category
+  const [selectedCategory, setSelectedCategory] = useState("Work");
+
   const categories = ["Work", "Study", "Meetings", "Events"];
 
   const featuredSpaces = [
@@ -26,17 +29,24 @@ const HomeScreen = () => {
       id: "1",
       title: "Diwan Studio",
       location: "Manama",
-      type: "Coworking Space",
+      type: "Work",
       image: diwanImg,
     },
     {
       id: "2",
       title: "Savoy Hotel Lounge",
       location: "Juffair",
-      type: "Meeting Space",
+      type: "Meetings",
       image: savoyImg,
     },
   ];
+
+  // (optional future filtering ready)
+  const filteredSpaces = featuredSpaces.filter((space) =>
+    selectedCategory === "Work"
+      ? true
+      : space.type.includes(selectedCategory)
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -49,35 +59,41 @@ const HomeScreen = () => {
 
           <Input placeholder="Search spaces..." />
 
+          {/* ✅ FIX 2: category selection works now */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryRow}
           >
-            {categories.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.categoryChip,
-                  index === 0 && styles.activeCategoryChip,
-                ]}
-                activeOpacity={0.8}
-              >
-                <Text
+            {categories.map((item) => {
+              const isActive = selectedCategory === item;
+
+              return (
+                <TouchableOpacity
+                  key={item}
                   style={[
-                    styles.categoryText,
-                    index === 0 && styles.activeCategoryText,
+                    styles.categoryChip,
+                    isActive && styles.activeCategoryChip,
                   ]}
+                  onPress={() => setSelectedCategory(item)}
+                  activeOpacity={0.8}
                 >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      isActive && styles.activeCategoryText,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <Text style={styles.sectionTitle}>Featured spaces</Text>
 
-          {featuredSpaces.map((space) => (
+          {filteredSpaces.map((space) => (
             <SpaceCard
               key={space.id}
               title={space.title}

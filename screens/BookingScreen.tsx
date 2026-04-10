@@ -10,6 +10,8 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 import BottomNav from "../components/BottomNav";
+import { Alert } from "react-native";
+import { useAuth } from "../context/AuthContext";
 
 type DateItem = {
   id: string;
@@ -21,6 +23,7 @@ type DateItem = {
 
 const BookingScreen = () => {
 const navigation = useNavigation<any>();
+const { user, logout } = useAuth();
 
   const bookingItem = {
     venueName: "Diwan Hub, Adliya",
@@ -88,6 +91,30 @@ const navigation = useNavigation<any>();
   const total = useMemo(() => {
     return (bookingItem.pricePerHour * selectedDuration).toFixed(2);
   }, [bookingItem.pricePerHour, selectedDuration]);
+
+const handleBooking = () => {
+  if (!user) {
+    Alert.alert(
+      "Login Required",
+      "You have to log in to make a booking.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Login",
+          onPress: async () => {
+            // 🔥 reset auth state first
+            await logout(); 
+
+            // navigation will automatically switch to Login screen
+          },
+        },
+      ]
+    );
+    return;
+  }
+
+  navigation.navigate("BookingSuccess");
+};
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -253,10 +280,10 @@ const navigation = useNavigation<any>();
             </View>
           </View>
 
-         <TouchableOpacity
+<TouchableOpacity
   style={styles.confirmButton}
   activeOpacity={0.8}
-  onPress={() => navigation.navigate("BookingSuccess")}
+  onPress={handleBooking}
 >
   <Text style={styles.confirmButtonText}>Confirm Booking</Text>
 </TouchableOpacity>

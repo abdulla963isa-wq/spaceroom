@@ -1,97 +1,181 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-type User = {
-  email: string;
-  name: string;
-};
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 
 type AuthContextType = {
-  user: User | null;
+  user: FirebaseAuthTypes.User | null;
+  isGuest: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  initializing: boolean;
+
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
+
+  register: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
+
+  continueAsGuest: () => void;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export const AuthProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [user, setUser] =
+    useState<FirebaseAuthTypes.User | null>(null);
 
+  const [isGuest, setIsGuest] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+
+  const initializingRef = useRef(true);
+
+  // ✅ LISTEN TO AUTH STATE (SOURCE OF TRUTH)
   useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const saved = await AsyncStorage.getItem("@user");
-        if (saved) setUser(JSON.parse(saved));
-      } catch (e) {}
-      setLoading(false);
-    };
-    loadSession();
+    const unsubscribe = auth().onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser);
+      setIsGuest(false);
+
+      if (initializingRef.current) {
+        initializingRef.current = false;
+        setInitializing(false);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  // 🔐 LOGIN
+  const login = async (email: string, password: string) => {
     try {
-      const stored = await AsyncStorage.getItem("@users");
-      const users: any[] = stored ? JSON.parse(stored) : [];
-      const found = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      setLoading(true);
+
+      const cred = await auth().signInWithEmailAndPassword(
+        email.trim().toLowerCase(),
+        password
       );
-      if (found) {
-        const userData = { email: found.email, name: found.name };
-        await AsyncStorage.setItem("@user", JSON.stringify(userData));
-        setUser(userData);
-        return true;
+
+      setUser(cred.user);
+      setIsGuest(false);
+
+      return { success: true };
+    } catch (e: any) {
+      let error = "Invalid email or password.";
+
+      if (e.code === "auth/user-not-found") {
+        error = "No account found.";
+      } else if (e.code === "auth/wrong-password") {
+        error = "Incorrect password.";
+      } else if (e.code === "auth/invalid-email") {
+        error = "Invalid email format.";
       }
-      return false;
-    } catch (e) {
-      console.log("Login error:", e);
-      return false;
+
+      return { success: false, error };
+    } finally {
+      setLoading(false);
     }
   };
 
+  // 🧾 REGISTER
   const register = async (
     name: string,
     email: string,
     password: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  ) => {
     try {
-      const stored = await AsyncStorage.getItem("@users");
-      const users: any[] = stored ? JSON.parse(stored) : [];
-      const exists = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase()
-      );
-      if (exists) {
-        return { success: false, error: "An account with this email already exists." };
-      }
-      const newUser = { name, email: email.toLowerCase(), password };
-      users.push(newUser);
-      await AsyncStorage.setItem("@users", JSON.stringify(users));
-      const userData = { email: email.toLowerCase(), name };
-      await AsyncStorage.setItem("@user", JSON.stringify(userData));
-      setUser(userData);
+      setLoading(true);
+
+      const userCredential =
+        await auth().createUserWithEmailAndPassword(
+          email.trim().toLowerCase(),
+          password
+        );
+
+      // ✅ Save display name
+      await userCredential.user.updateProfile({
+        displayName: name.trim(),
+      });
+
+      // 🔁 Force refresh user so UI updates immediately
+      await auth().currentUser?.reload();
+
+      setUser(auth().currentUser);
+
+      setIsGuest(false);
+
       return { success: true };
-    } catch (e) {
-      console.log("Register error:", e);
-      return { success: false, error: "Something went wrong. Please try again." };
+    } catch (e: any) {
+      let error = "Registration failed.";
+
+      if (e.code === "auth/email-already-in-use") {
+        error = "Email already in use.";
+      } else if (e.code === "auth/invalid-email") {
+        error = "Invalid email format.";
+      } else if (e.code === "auth/weak-password") {
+        error = "Password is too weak.";
+      }
+
+      return { success: false, error };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = async () => {
-    await AsyncStorage.removeItem("@user");
+  // 👤 GUEST MODE
+  const continueAsGuest = () => {
+    setIsGuest(true);
     setUser(null);
   };
 
+  // 🚪 LOGOUT
+  const logout = async () => {
+    try {
+      await auth().signOut();
+    } catch (e) {
+      console.log("Logout error:", e);
+    } finally {
+      setUser(null);
+      setIsGuest(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isGuest,
+        loading,
+        initializing,
+        login,
+        register,
+        continueAsGuest,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// Hook
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
   return ctx;
 };

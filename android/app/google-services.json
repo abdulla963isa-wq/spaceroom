@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "637793683641",
+    "project_id": "spaceroom-e38cb",
+    "storage_bucket": "spaceroom-e38cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637793683641:android:40a032b0db1af4b224b368",
+        "android_client_info": {
+          "package_name": "com.spaceroom_clean"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUBVrw26Hl_6mCmBPXO0YwwdPRIPzd6ZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

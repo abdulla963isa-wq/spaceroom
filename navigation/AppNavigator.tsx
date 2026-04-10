@@ -1,15 +1,15 @@
 import React from "react";
-import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { ActivityIndicator, View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { enableScreens } from "react-native-screens";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 import { COLORS } from "../constants/colors";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 
-enableScreens();
-
-import HomeScreen1 from "../screens/HomeScreen1";
+import HomeScreen from "../screens/HomeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SpaceDetailsScreen from "../screens/SpaceDetailsScreen";
@@ -17,123 +17,140 @@ import BookingScreen from "../screens/BookingScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
 import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
+import ForgetPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
 
-export type RootStackParamList = {
-  MainTabs: undefined;
-  SpaceDetails: undefined;
-  Booking: undefined;
-  BookingSuccess: undefined;
-  Login: undefined;
-  Register: undefined;
-};
+enableScreens();
 
-export type MainTabParamList = {
-  Home: undefined;
-  Bookings: undefined;
-  Account: undefined;
-};
-
-const Stack = createStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<MainTabParamList>();
-
-function CustomTabBar({ state, navigation }: any) {
-  const tabs = [
-    { name: "Home", icon: "⌂" },
-    { name: "Bookings", icon: "🕘" },
-    { name: "Account", icon: "👤" },
-  ];
-
-  return (
-    <View style={styles.bottomTabBar}>
-      {tabs.map((tab, index) => {
-        const isFocused = state.index === index;
-        return (
-          <TouchableOpacity
-            key={tab.name}
-            style={[styles.tabItem, isFocused && styles.activeTab]}
-            onPress={() => navigation.navigate(tab.name)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabIcon, isFocused && styles.activeTabText]}>
-              {tab.icon}
-            </Text>
-            <Text style={[styles.tabText, isFocused && styles.activeTabText]}>
-              {tab.name}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   return (
     <Tab.Navigator
-      initialRouteName="Home"
-      screenOptions={{ headerShown: false }}
-      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: "#14cfff",
+        tabBarInactiveTintColor: "#888",
+        tabBarStyle: {
+          backgroundColor: "#141414",
+          borderTopColor: "#141414",
+        },
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen1} />
-      <Tab.Screen name="Bookings" component={MyBookingsScreen} />
-      <Tab.Screen name="Account" component={ProfileScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: focused ? "#14cfff" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 16, color: focused ? "#141414" : color }}>
+                ⌂
+              </Text>
+            </View>
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="Bookings"
+        component={MyBookingsScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: focused ? "#14cfff" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 16, color: focused ? "#141414" : color }}>
+                🕘
+              </Text>
+            </View>
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="Account"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: focused ? "#14cfff" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 16, color: focused ? "#141414" : color }}>
+                👤
+              </Text>
+            </View>
+          ),
+        }}
+      />
     </Tab.Navigator>
+  );
+}
+
+function Navigation() {
+  const { user, isGuest, initializing } = useAuth();
+
+  if (initializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  const isAuthenticated = !!user || isGuest;
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!isAuthenticated ? (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="ForgetPassword" component={ForgetPasswordScreen} />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
+          <Stack.Screen name="Booking" component={BookingScreen} />
+          <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+        </>
+      )}
+    </Stack.Navigator>
   );
 }
 
 export default function AppNavigator() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
-          <Stack.Screen name="Booking" component={BookingScreen} />
-          <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NavigationContainer>
+          <Navigation />
+        </NavigationContainer>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  bottomTabBar: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 10,
-    borderRadius: 18,
-  },
-  activeTab: {
-    backgroundColor: COLORS.primary,
-  },
-  tabIcon: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  tabText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: "500",
-  },
-  activeTabText: {
-    color: COLORS.black,
-    fontWeight: "700",
-  },
-});
