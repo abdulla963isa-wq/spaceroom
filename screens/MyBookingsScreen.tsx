@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import {
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 
 const diwanImg = require("../assets/images/diwan.jpg");
@@ -15,6 +15,7 @@ const savoyImg = require("../assets/images/savoy.jpg");
 
 const MyBookingsScreen = () => {
   const [activeTab, setActiveTab] = useState<"Upcoming" | "Past">("Upcoming");
+  const insets = useSafeAreaInsets();
 
   const upcomingBookings = [
     {
@@ -58,7 +59,7 @@ const MyBookingsScreen = () => {
   const bookings = activeTab === "Upcoming" ? upcomingBookings : pastBookings;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
         <ScrollView
           style={styles.container}
@@ -178,7 +179,7 @@ const MyBookingsScreen = () => {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

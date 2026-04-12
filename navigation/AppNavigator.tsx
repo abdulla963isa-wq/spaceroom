@@ -4,7 +4,6 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { enableScreens } from "react-native-screens";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { COLORS } from "../constants/colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -145,12 +144,10 @@ function Navigation() {
 
 export default function AppNavigator() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <NavigationContainer>
-          <Navigation />
-        </NavigationContainer>
-      </AuthProvider>
-    </GestureHandlerRootView>
+    <AuthProvider>
+      <NavigationContainer>
+        <Navigation />
+      </NavigationContainer>
+    </AuthProvider>
   );
 }

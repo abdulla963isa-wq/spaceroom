@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +10,11 @@ import {
   View,
 } from "react-native";
 import auth from "@react-native-firebase/auth";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/colors";
 
 const ForgetPasswordScreen = () => {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +49,7 @@ const ForgetPasswordScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Forgot Password</Text>
 
@@ -90,7 +91,7 @@ const ForgetPasswordScreen = () => {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import BottomNav from "../components/BottomNav";
 import { Alert } from "react-native";
@@ -24,6 +24,7 @@ type DateItem = {
 const BookingScreen = () => {
 const navigation = useNavigation<any>();
 const { user, logout } = useAuth();
+const insets = useSafeAreaInsets();
 
   const bookingItem = {
     venueName: "Diwan Hub, Adliya",
@@ -117,7 +118,7 @@ const handleBooking = () => {
 };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
         <ScrollView
           style={styles.container}
@@ -291,7 +292,7 @@ const handleBooking = () => {
 
         <BottomNav activeTab="My Bookings" />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

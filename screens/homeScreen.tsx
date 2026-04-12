@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Header from "../components/Header";
 import Input from "../components/Input";
 import SpaceCard from "../components/SpaceCard";
@@ -18,6 +18,7 @@ const savoyImg = require("../assets/images/savoy.jpg");
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   // ✅ FIX 1: state for selected category
   const [selectedCategory, setSelectedCategory] = useState("Work");
@@ -49,7 +50,7 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -105,7 +106,7 @@ const HomeScreen = () => {
           ))}
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,16 +1,17 @@
 import React from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { useNavigation } from "@react-navigation/native";
 
 const BookingSuccessScreen = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const booking = {
     venueName: "Diwan Hub, Adliya",
     spaceName: "Board Room",
@@ -22,7 +23,7 @@ const BookingSuccessScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={styles.container}>
         <View style={styles.iconWrapper}>
           <Text style={styles.checkIcon}>✓</Text>
@@ -86,7 +87,7 @@ const BookingSuccessScreen = () => {
   <Text style={styles.secondaryButtonText}>Back to Home</Text>
 </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

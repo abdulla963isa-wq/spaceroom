@@ -6,9 +6,9 @@ import {
   ImageBackground,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Image,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 
@@ -25,6 +25,7 @@ type SpaceOption = {
 
 const SpaceDetailsScreen = () => {
 const navigation = useNavigation<any>();
+const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const toggleFavorite = (id: string) => {
@@ -114,7 +115,7 @@ const navigation = useNavigation<any>();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <ImageBackground
           source={{ uri: venue.heroImage }}
@@ -205,7 +206,7 @@ const navigation = useNavigation<any>();
           })}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

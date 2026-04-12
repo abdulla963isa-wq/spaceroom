@@ -1,17 +1,18 @@
 import React from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../context/AuthContext";
 
 const ProfileScreen = () => {
   const { logout, user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     await logout();
@@ -57,7 +58,7 @@ const ProfileScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -109,7 +110,7 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
