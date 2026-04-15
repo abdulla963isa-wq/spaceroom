@@ -22,9 +22,9 @@ type DateItem = {
 };
 
 const BookingScreen = () => {
-const navigation = useNavigation<any>();
-const { user, logout } = useAuth();
-const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const bookingItem = {
     venueName: "Diwan Hub, Adliya",
@@ -93,29 +93,26 @@ const insets = useSafeAreaInsets();
     return (bookingItem.pricePerHour * selectedDuration).toFixed(2);
   }, [bookingItem.pricePerHour, selectedDuration]);
 
-const handleBooking = () => {
-  if (!user) {
-    Alert.alert(
-      "Login Required",
-      "You have to log in to make a booking.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Login",
-          onPress: async () => {
-            // 🔥 reset auth state first
-            await logout(); 
-
-            // navigation will automatically switch to Login screen
+  const handleBooking = () => {
+    if (!user) {
+      Alert.alert(
+        "Login Required",
+        "You have to log in to make a booking.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Login",
+            onPress: async () => {
+              await logout();
+            },
           },
-        },
-      ]
-    );
-    return;
-  }
+        ]
+      );
+      return;
+    }
 
-  navigation.navigate("BookingSuccess");
-};
+    navigation.navigate("BookingSuccess");
+  };
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -126,6 +123,14 @@ const handleBooking = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.backArrow}>←</Text>
+            </TouchableOpacity>
+
             <Text style={styles.smallLabel}>Booking</Text>
             <Text style={styles.title}>{bookingItem.spaceName}</Text>
             <Text style={styles.subtitle}>{bookingItem.venueName}</Text>
@@ -281,13 +286,13 @@ const handleBooking = () => {
             </View>
           </View>
 
-<TouchableOpacity
-  style={styles.confirmButton}
-  activeOpacity={0.8}
-  onPress={handleBooking}
->
-  <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-</TouchableOpacity>
+          <TouchableOpacity
+            style={styles.confirmButton}
+            activeOpacity={0.8}
+            onPress={handleBooking}
+          >
+            <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <BottomNav activeTab="My Bookings" />
@@ -317,6 +322,24 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 12,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    marginBottom: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    width: 46,
+    height: 46,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backArrow: {
+    fontSize: 22,
+    color: COLORS.textPrimary,
+    fontWeight: "600",
+    lineHeight: 26,
   },
   smallLabel: {
     fontSize: 13,

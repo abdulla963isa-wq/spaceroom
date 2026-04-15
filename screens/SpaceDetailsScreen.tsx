@@ -24,8 +24,8 @@ type SpaceOption = {
 };
 
 const SpaceDetailsScreen = () => {
-const navigation = useNavigation<any>();
-const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const toggleFavorite = (id: string) => {
@@ -116,6 +116,15 @@ const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      {/* Floating back button over the hero */}
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={[styles.backButton, { top: insets.top + 14 }]}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backArrow}>←</Text>
+      </TouchableOpacity>
+
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <ImageBackground
           source={{ uri: venue.heroImage }}
@@ -195,11 +204,11 @@ const insets = useSafeAreaInsets();
                   <Text style={styles.optionAvailability}>{option.availability}</Text>
 
                   <TouchableOpacity
-  style={styles.bookButton}
-  onPress={() => navigation.navigate("Booking")}
->
-  <Text style={styles.bookButtonText}>Book Now</Text>
-</TouchableOpacity>
+                    style={styles.bookButton}
+                    onPress={() => navigation.navigate("Booking")}
+                  >
+                    <Text style={styles.bookButtonText}>Book Now</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             );
@@ -220,6 +229,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0E1420",
+  },
+  backButton: {
+    position: "absolute",
+    left: 20,
+    zIndex: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backArrow: {
+    fontSize: 22,
+    color: "#FFFFFF",
+    fontWeight: "600",
+    lineHeight: 26,
   },
   hero: {
     width: "100%",

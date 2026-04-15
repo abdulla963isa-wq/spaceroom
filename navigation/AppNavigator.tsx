@@ -8,7 +8,7 @@ import { enableScreens } from "react-native-screens";
 import { COLORS } from "../constants/colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
-import HomeScreen from "../screens/HomeScreen";
+import HomeScreen from "../screens/homeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SpaceDetailsScreen from "../screens/SpaceDetailsScreen";

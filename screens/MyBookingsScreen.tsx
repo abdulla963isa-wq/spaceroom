@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +14,24 @@ import { COLORS } from "../constants/colors";
 const diwanImg = require("../assets/images/diwan.jpg");
 const savoyImg = require("../assets/images/savoy.jpg");
 
+type Booking = {
+  id: string;
+  venueName: string;
+  spaceName: string;
+  date: string;
+  time: string;
+  duration: string;
+  status: string;
+  price: string;
+  image: any;
+};
+
 const MyBookingsScreen = () => {
   const [activeTab, setActiveTab] = useState<"Upcoming" | "Past">("Upcoming");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const insets = useSafeAreaInsets();
 
-  const upcomingBookings = [
+  const upcomingBookings: Booking[] = [
     {
       id: "1",
       venueName: "Diwan Hub, Adliya",
@@ -42,7 +56,7 @@ const MyBookingsScreen = () => {
     },
   ];
 
-  const pastBookings = [
+  const pastBookings: Booking[] = [
     {
       id: "3",
       venueName: "Diwan Hub, Adliya",
@@ -57,6 +71,15 @@ const MyBookingsScreen = () => {
   ];
 
   const bookings = activeTab === "Upcoming" ? upcomingBookings : pastBookings;
+
+  const detailRows = (booking: Booking) => [
+    { label: "Booking ID", value: `#BK-2026-00${booking.id}` },
+    { label: "Date", value: booking.date },
+    { label: "Time", value: booking.time },
+    { label: "Duration", value: booking.duration },
+    { label: "Status", value: booking.status, isStatus: true },
+    { label: "Total paid", value: booking.price, isPrice: true },
+  ];
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -162,7 +185,11 @@ const MyBookingsScreen = () => {
                       <Text style={styles.priceValue}>{booking.price}</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.viewButton} activeOpacity={0.8}>
+                    <TouchableOpacity
+                      style={styles.viewButton}
+                      onPress={() => setSelectedBooking(booking)}
+                      activeOpacity={0.8}
+                    >
                       <Text style={styles.viewButtonText}>View Details</Text>
                     </TouchableOpacity>
                   </View>
@@ -179,6 +206,88 @@ const MyBookingsScreen = () => {
           </View>
         </ScrollView>
       </View>
+
+      {/* Booking Detail Modal */}
+      <Modal
+        visible={!!selectedBooking}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectedBooking(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedBooking(null)}
+        />
+
+        {selectedBooking && (
+          <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.dragHandle} />
+
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Booking Details</Text>
+              <TouchableOpacity
+                onPress={() => setSelectedBooking(null)}
+                style={styles.closeBtn}
+              >
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sheetVenueCard}>
+              <Image source={selectedBooking.image} style={styles.sheetImage} />
+              <View style={styles.sheetVenueInfo}>
+                <Text style={styles.sheetSpaceName}>{selectedBooking.spaceName}</Text>
+                <Text style={styles.sheetVenueName}>{selectedBooking.venueName}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailContainer}>
+              {detailRows(selectedBooking).map((row, i, arr) => (
+                <View
+                  key={row.label}
+                  style={[
+                    styles.detailRow,
+                    i < arr.length - 1 && styles.detailRowBorder,
+                  ]}
+                >
+                  <Text style={styles.detailLabel}>{row.label}</Text>
+
+                  {row.isStatus ? (
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        selectedBooking.status === "Completed" && styles.completedBadge,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          selectedBooking.status === "Completed" &&
+                            styles.completedStatusText,
+                        ]}
+                      >
+                        {row.value}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        row.isPrice && styles.priceValue,
+                      ]}
+                    >
+                      {row.value}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+
+
+          </View>
+        )}
+      </Modal>
     </View>
   );
 };
@@ -352,4 +461,105 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 21,
   },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  bottomSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dragHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: COLORS.border,
+    borderRadius: 4,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  closeBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  closeBtnText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  sheetVenueCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sheetImage: {
+    width: "100%",
+    height: 130,
+  },
+  sheetVenueInfo: {
+    padding: 12,
+  },
+  sheetSpaceName: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  sheetVenueName: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+  },
+  detailContainer: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+  },
+  detailRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  detailLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+  },
+  detailValue: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
 });
