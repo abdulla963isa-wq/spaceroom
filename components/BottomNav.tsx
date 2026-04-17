@@ -1,17 +1,31 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 
 type BottomNavProps = {
   activeTab: "Home" | "My Bookings" | "Account";
 };
 
+const tabRoutes: Record<BottomNavProps["activeTab"], string> = {
+  Home: "Home",
+  "My Bookings": "Bookings",
+  Account: "Account",
+};
+
 const BottomNav = ({ activeTab }: BottomNavProps) => {
+  const navigation = useNavigation<any>();
+
+  const handleTabPress = (tab: BottomNavProps["activeTab"]) => {
+    navigation.navigate("MainTabs", { screen: tabRoutes[tab] });
+  };
+
   return (
     <View style={styles.bottomTabBar}>
       <TouchableOpacity
         style={[styles.tabItem, activeTab === "Home" && styles.activeTab]}
         activeOpacity={0.8}
+        onPress={() => handleTabPress("Home")}
       >
         <Text style={[styles.tabIcon, activeTab === "Home" && styles.activeTabText]}>
           ⌂
@@ -24,6 +38,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
       <TouchableOpacity
         style={[styles.tabItem, activeTab === "My Bookings" && styles.activeTab]}
         activeOpacity={0.8}
+        onPress={() => handleTabPress("My Bookings")}
       >
         <Text
           style={[styles.tabIcon, activeTab === "My Bookings" && styles.activeTabText]}
@@ -40,6 +55,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
       <TouchableOpacity
         style={[styles.tabItem, activeTab === "Account" && styles.activeTab]}
         activeOpacity={0.8}
+        onPress={() => handleTabPress("Account")}
       >
         <Text
           style={[styles.tabIcon, activeTab === "Account" && styles.activeTabText]}

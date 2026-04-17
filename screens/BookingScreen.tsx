@@ -79,11 +79,18 @@ const BookingScreen = () => {
     "5:00 PM",
     "6:00 PM",
   ];
-  const durations = [1, 2, 3, 4];
+  const durationOptions = [
+    { hours: 1, label: "1 hour" },
+    { hours: 2, label: "2 hours" },
+    { hours: 3, label: "3 hours" },
+    { hours: 4, label: "Half day" },
+    { hours: 6, label: "6 hours" },
+    { hours: 8, label: "Full day" },
+  ];
 
   const [selectedDateId, setSelectedDateId] = useState(dates[0].id);
   const [selectedTime, setSelectedTime] = useState("10:00 AM");
-  const [selectedDuration, setSelectedDuration] = useState(2);
+  const [selectedDuration, setSelectedDuration] = useState(6);
 
   const selectedDate = useMemo(() => {
     return dates.find((item) => item.id === selectedDateId) || dates[0];
@@ -140,45 +147,51 @@ const BookingScreen = () => {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Select Date</Text>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalRow}
-            >
-              {dates.map((item) => {
-                const isSelected = selectedDateId === item.id;
+            <View style={styles.dateRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}
+              >
+                {dates.map((item) => {
+                  const isSelected = selectedDateId === item.id;
 
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.dateCard,
-                      isSelected && styles.selectedDateCard,
-                    ]}
-                    onPress={() => setSelectedDateId(item.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
                       style={[
-                        styles.dateDayText,
-                        isSelected && styles.selectedDateText,
+                        styles.dateCard,
+                        isSelected && styles.selectedDateCard,
                       ]}
+                      onPress={() => setSelectedDateId(item.id)}
+                      activeOpacity={0.8}
                     >
-                      {item.shortDay}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.dateDayText,
+                          isSelected && styles.selectedDateText,
+                        ]}
+                      >
+                        {item.shortDay}
+                      </Text>
 
-                    <Text
-                      style={[
-                        styles.dateNumberText,
-                        isSelected && styles.selectedDateText,
-                      ]}
-                    >
-                      {item.dayNumber}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                      <Text
+                        style={[
+                          styles.dateNumberText,
+                          isSelected && styles.selectedDateText,
+                        ]}
+                      >
+                        {item.dayNumber}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={styles.dateArrowWrapper} pointerEvents="none">
+                <Text style={styles.dateArrowText}>›</Text>
+              </View>
+            </View>
           </View>
 
           <View style={styles.card}>
@@ -216,17 +229,17 @@ const BookingScreen = () => {
             <Text style={styles.sectionTitle}>Duration</Text>
 
             <View style={styles.wrapRow}>
-              {durations.map((hours) => {
-                const isSelected = selectedDuration === hours;
+              {durationOptions.map((option) => {
+                const isSelected = selectedDuration === option.hours;
 
                 return (
                   <TouchableOpacity
-                    key={hours}
+                    key={option.hours}
                     style={[
                       styles.optionChip,
                       isSelected && styles.selectedOptionChip,
                     ]}
-                    onPress={() => setSelectedDuration(hours)}
+                    onPress={() => setSelectedDuration(option.hours)}
                     activeOpacity={0.8}
                   >
                     <Text
@@ -235,7 +248,7 @@ const BookingScreen = () => {
                         isSelected && styles.selectedOptionText,
                       ]}
                     >
-                      {hours} {hours === 1 ? "hour" : "hours"}
+                      {option.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -378,7 +391,29 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   horizontalRow: {
-    paddingRight: 8,
+    paddingRight: 40,
+  },
+  dateRow: {
+    position: "relative",
+  },
+  dateArrowWrapper: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    transform: [{ translateY: -12 }],
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dateArrowText: {
+    fontSize: 18,
+    color: COLORS.textSecondary,
+    fontWeight: "700",
   },
   dateCard: {
     width: 76,
