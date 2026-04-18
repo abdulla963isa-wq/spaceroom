@@ -324,7 +324,6 @@ const SettingsScreen = () => {
           >
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.smallLabel}>Preferences</Text>
           <Text style={styles.title}>Settings</Text>
         </View>
 

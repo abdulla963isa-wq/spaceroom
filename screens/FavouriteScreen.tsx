@@ -30,7 +30,6 @@ const FavouritesScreen = () => {
           >
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.smallLabel}>Saved</Text>
           <Text style={styles.title}>Favourites</Text>
         </View>
 

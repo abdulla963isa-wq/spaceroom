@@ -23,6 +23,7 @@ const RegisterScreen = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +56,13 @@ const RegisterScreen = () => {
       newErrors.phone = "Phone number must be exactly 8 digits";
     }
 
+    // Date of Birth → DD-MM-YYYY format
+    if (!dateOfBirth.trim()) {
+      newErrors.dateOfBirth = "Date of birth is required";
+    } else if (!/^\d{2}-\d{2}-\d{4}$/.test(dateOfBirth)) {
+      newErrors.dateOfBirth = "Date must be in DD-MM-YYYY format";
+    }
+
     // Password → 8+ strong password
 const passwordRegex =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
@@ -79,7 +87,9 @@ if (!password) {
     const result = await register(
       name.trim(),
       email.trim().toLowerCase(),
-      password
+      password,
+      phone.trim(),
+      dateOfBirth.trim()
     );
 
     setLoading(false);
@@ -165,6 +175,23 @@ if (!password) {
             />
             {!!errors.phone && (
               <Text style={styles.errorText}>{errors.phone}</Text>
+            )}
+          </View>
+
+          {/* DATE OF BIRTH */}
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <TextInput
+              style={[styles.input, !!errors.dateOfBirth && styles.inputError]}
+              placeholder="DD-MM-YYYY"
+              placeholderTextColor={COLORS.textMuted}
+              value={dateOfBirth}
+              onChangeText={(v) => handleChange("dateOfBirth", setDateOfBirth, v)}
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            {!!errors.dateOfBirth && (
+              <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
             )}
           </View>
 

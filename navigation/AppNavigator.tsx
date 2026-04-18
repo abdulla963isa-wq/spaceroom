@@ -17,6 +17,7 @@ import BookingScreen from "../screens/BookingScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
 import FavouritesScreen from "../screens/FavouriteScreen";
 import SettingsScreen from "../screens/SettingScreen";
+import PersonalDetailsScreen from "../screens/personalDetails";
 import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import ForgetPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
@@ -141,6 +142,7 @@ function Navigation() {
           <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
           <Stack.Screen name="Favourites" component={FavouritesScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
         </>
       )}
     </Stack.Navigator>

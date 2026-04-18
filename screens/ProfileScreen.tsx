@@ -32,7 +32,7 @@ const ProfileScreen = () => {
       icon: "👤",
       title: "Personal Details",
       subtitle: "Manage your account information",
-      screen: null,
+      screen: "PersonalDetails",
     },
     {
       id: "2",

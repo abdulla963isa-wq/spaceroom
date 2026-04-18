@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import firestore from "@react-native-firebase/firestore";
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -21,11 +22,15 @@ type AuthContextType = {
   register: (
     name: string,
     email: string,
-    password: string
+    password: string,
+    phone: string,
+    dateOfBirth: string
   ) => Promise<{ success: boolean; error?: string }>;
 
   continueAsGuest: () => void;
   logout: () => Promise<void>;
+  getUserProfile: () => Promise<any>;
+  updateUserProfile: (data: any) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -94,7 +99,9 @@ export const AuthProvider = ({
   const register = async (
     name: string,
     email: string,
-    password: string
+    password: string,
+    phone: string,
+    dateOfBirth: string
   ) => {
     try {
       setLoading(true);
@@ -109,6 +116,16 @@ export const AuthProvider = ({
       await userCredential.user.updateProfile({
         displayName: name.trim(),
       });
+
+      // ✅ Save additional data to Firestore
+      await firestore()
+        .collection("users")
+        .doc(userCredential.user.uid)
+        .set({
+          phoneNumber: phone.trim(),
+          dateOfBirth: dateOfBirth.trim(),
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        });
 
       // 🔁 Force refresh user so UI updates immediately
       await auth().currentUser?.reload();
@@ -153,6 +170,19 @@ export const AuthProvider = ({
     }
   };
 
+  // 📄 GET USER PROFILE
+  const getUserProfile = async () => {
+    if (!user) return null;
+    const doc = await firestore().collection("users").doc(user.uid).get();
+    return doc.exists ? doc.data() : null;
+  };
+
+  // ✏️ UPDATE USER PROFILE
+  const updateUserProfile = async (data: any) => {
+    if (!user) return;
+    await firestore().collection("users").doc(user.uid).update(data);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -164,6 +194,8 @@ export const AuthProvider = ({
         register,
         continueAsGuest,
         logout,
+        getUserProfile,
+        updateUserProfile,
       }}
     >
       {children}
