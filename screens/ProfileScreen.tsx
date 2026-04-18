@@ -7,12 +7,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../context/AuthContext";
 
 const ProfileScreen = () => {
   const { logout, user } = useAuth();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
 
   const handleLogout = async () => {
     await logout();
@@ -30,30 +32,35 @@ const ProfileScreen = () => {
       icon: "👤",
       title: "Personal Details",
       subtitle: "Manage your account information",
+      screen: null,
     },
     {
       id: "2",
       icon: "💳",
       title: "Payment Methods",
       subtitle: "Cards and payment options",
+      screen: null,
     },
     {
       id: "3",
-      icon: "🕘",
-      title: "History",
-      subtitle: "View your past bookings",
+      icon: "❤️",
+      title: "Favourite",
+      subtitle: "View your saved spaces",
+      screen: "Favourites",
     },
     {
       id: "4",
       icon: "⚙️",
       title: "Settings",
       subtitle: "App preferences and options",
+      screen: "Settings",
     },
     {
       id: "5",
       icon: "❓",
       title: "Help & Support",
       subtitle: "Get help or contact support",
+      screen: null,
     },
   ];
 
@@ -81,6 +88,9 @@ const ProfileScreen = () => {
                 key={item.id}
                 style={styles.menuCard}
                 activeOpacity={0.8}
+                onPress={() => {
+                  if (item.screen) navigation.navigate(item.screen);
+                }}
               >
                 <View style={styles.menuLeft}>
                   <View style={styles.iconWrapper}>
@@ -89,9 +99,7 @@ const ProfileScreen = () => {
 
                   <View style={styles.textWrapper}>
                     <Text style={styles.menuTitle}>{item.title}</Text>
-                    <Text style={styles.menuSubtitle}>
-                      {item.subtitle}
-                    </Text>
+                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                   </View>
                 </View>
 
@@ -128,14 +136,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 120,
   },
-
   header: {
     alignItems: "center",
     paddingTop: 60,
     paddingBottom: 28,
     paddingHorizontal: 20,
   },
-
   avatar: {
     width: 88,
     height: 88,
@@ -145,30 +151,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-
   avatarText: {
     fontSize: 30,
     fontWeight: "800",
     color: COLORS.black,
   },
-
   name: {
     fontSize: 24,
     fontWeight: "800",
     color: COLORS.textPrimary,
     marginBottom: 6,
   },
-
   email: {
     fontSize: 14,
     color: COLORS.textSecondary,
   },
-
   section: {
     paddingHorizontal: 20,
     paddingBottom: 18,
   },
-
   menuCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 24,
@@ -180,13 +181,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   menuLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
   },
-
   iconWrapper: {
     width: 46,
     height: 46,
@@ -196,32 +195,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 14,
   },
-
   icon: {
     fontSize: 20,
   },
-
   textWrapper: {
     flex: 1,
   },
-
   menuTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: COLORS.textPrimary,
     marginBottom: 4,
   },
-
   menuSubtitle: {
     fontSize: 13,
     color: COLORS.textSecondary,
   },
-
   arrow: {
     fontSize: 24,
     color: COLORS.textSecondary,
   },
-
   logoutButton: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -233,7 +226,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.surface,
   },
-
   logoutText: {
     color: COLORS.textPrimary,
     fontSize: 16,

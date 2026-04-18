@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-
+import { useFavourites } from "../context/FavouritesContext";
+import type { FavouriteItem } from "../context/FavouritesContext";
 
 type SpaceOption = {
   id: string;
@@ -20,23 +21,18 @@ type SpaceOption = {
   tags: string[];
   capacity: number;
   price: string;
+  pricePerHour: number;
   availability: string;
 };
 
 const SpaceDetailsScreen = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
-
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
+  const { toggleFavourite, isFavourite } = useFavourites();
 
   const venue = {
     name: "Diwan Hub, Adliya",
+    location: "Block 338, Adliya",
     description:
       "Flexible spaces designed for productivity and collaboration. Located in the heart of Block 338, Adliya.",
     heroImage:
@@ -61,6 +57,7 @@ const SpaceDetailsScreen = () => {
         tags: ["Private Room", "Screen", "Coffee"],
         capacity: 6,
         price: "BHD 5.5 / hour",
+        pricePerHour: 5.5,
         availability: "Available Sunday–Thursday, 9AM–5PM",
       },
       {
@@ -73,6 +70,7 @@ const SpaceDetailsScreen = () => {
         tags: ["Meeting Table", "Board Screen", "Power Outlets"],
         capacity: 8,
         price: "BHD 14.3 / hour",
+        pricePerHour: 14.3,
         availability: "Available Sunday–Thursday, 9AM–5PM",
       },
       {
@@ -85,6 +83,7 @@ const SpaceDetailsScreen = () => {
         tags: ["Open Area", "Presentation Screen", "Wi-Fi", "Projector"],
         capacity: 20,
         price: "BHD 25 / hour",
+        pricePerHour: 25,
         availability: "Available Sunday–Thursday, 9AM–5PM",
       },
       {
@@ -97,6 +96,7 @@ const SpaceDetailsScreen = () => {
         tags: ["Shared Desk", "Wi-Fi", "Air Conditioning", "Coffee"],
         capacity: 1,
         price: "BHD 5.5 / day",
+        pricePerHour: 5.5,
         availability: "Access from 9AM–5PM Weekdays",
       },
       {
@@ -109,14 +109,24 @@ const SpaceDetailsScreen = () => {
         tags: ["Private Room", "Office Desk", "Power Outlets", "Coffee", "Quiet Area"],
         capacity: 2,
         price: "BHD 11 / day",
+        pricePerHour: 11,
         availability: "Available Sunday–Thursday, 9AM–5PM",
       },
     ] as SpaceOption[],
   };
 
+  // Build a FavouriteItem from a space option
+  const toFavouriteItem = (option: SpaceOption): FavouriteItem => ({
+    id: option.id,
+    venueName: venue.name,
+    spaceName: option.title,
+    location: venue.location,
+    pricePerHour: option.pricePerHour,
+  });
+
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-      {/* Floating back button over the hero */}
+      {/* Floating back button */}
       <TouchableOpacity
         onPress={() => navigation.goBack()}
         style={[styles.backButton, { top: insets.top + 14 }]}
@@ -152,7 +162,8 @@ const SpaceDetailsScreen = () => {
 
         <View style={styles.optionsSection}>
           {venue.options.map((option, index) => {
-            const isFavorite = favorites[option.id];
+            const fav = toFavouriteItem(option);
+            const favourited = isFavourite(fav.id);
 
             return (
               <View
@@ -165,18 +176,19 @@ const SpaceDetailsScreen = () => {
                 <View style={styles.imageWrapper}>
                   <Image source={{ uri: option.image }} style={styles.optionImage} />
 
+                  {/* ✅ Heart uses shared FavouritesContext */}
                   <TouchableOpacity
                     style={styles.favoriteButton}
-                    onPress={() => toggleFavorite(option.id)}
+                    onPress={() => toggleFavourite(fav)}
                     activeOpacity={0.8}
                   >
                     <Text
                       style={[
                         styles.favoriteIcon,
-                        isFavorite && styles.favoriteIconActive,
+                        favourited && styles.favoriteIconActive,
                       ]}
                     >
-                      {isFavorite ? "♥" : "♡"}
+                      {favourited ? "♥" : "♡"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -191,7 +203,6 @@ const SpaceDetailsScreen = () => {
                         <Text style={styles.optionTagText}>{tag}</Text>
                       </View>
                     ))}
-
                     <View style={styles.capacityTag}>
                       <Text style={styles.capacityTagText}>
                         👥 Up to {option.capacity}{" "}
@@ -203,9 +214,18 @@ const SpaceDetailsScreen = () => {
                   <Text style={styles.optionPrice}>{option.price}</Text>
                   <Text style={styles.optionAvailability}>{option.availability}</Text>
 
+                  {/* ✅ Pass space data to BookingScreen */}
                   <TouchableOpacity
                     style={styles.bookButton}
-                    onPress={() => navigation.navigate("Booking")}
+                    onPress={() =>
+                      navigation.navigate("Booking", {
+                        spaceId: option.id,
+                        spaceName: option.title,
+                        venueName: venue.name,
+                        location: venue.location,
+                        pricePerHour: option.pricePerHour,
+                      })
+                    }
                   >
                     <Text style={styles.bookButtonText}>Book Now</Text>
                   </TouchableOpacity>

@@ -7,6 +7,7 @@ import { enableScreens } from "react-native-screens";
 
 import { COLORS } from "../constants/colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { FavouritesProvider } from "../context/FavouritesContext";
 
 import HomeScreen from "../screens/homeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
@@ -14,6 +15,8 @@ import ProfileScreen from "../screens/ProfileScreen";
 import SpaceDetailsScreen from "../screens/SpaceDetailsScreen";
 import BookingScreen from "../screens/BookingScreen";
 import BookingSuccessScreen from "../screens/BookingSuccessScreen";
+import FavouritesScreen from "../screens/FavouriteScreen";
+import SettingsScreen from "../screens/SettingScreen";
 import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import ForgetPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
@@ -136,6 +139,8 @@ function Navigation() {
           <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
           <Stack.Screen name="Booking" component={BookingScreen} />
           <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+          <Stack.Screen name="Favourites" component={FavouritesScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -145,9 +150,11 @@ function Navigation() {
 export default function AppNavigator() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <Navigation />
-      </NavigationContainer>
+      <FavouritesProvider>
+        <NavigationContainer>
+          <Navigation />
+        </NavigationContainer>
+      </FavouritesProvider>
     </AuthProvider>
   );
 }
