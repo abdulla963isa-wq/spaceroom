@@ -292,7 +292,7 @@ const SettingsScreen = () => {
       ],
     },
     {
-      title: "Danger Zone",
+      title: "Remove account",
       items: [
         {
           kind: "action",
@@ -402,7 +402,7 @@ const SettingsScreen = () => {
         ))}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Diwan Hub © 2025</Text>
+          <Text style={styles.footerText}></Text>
         </View>
       </ScrollView>
     </View>
