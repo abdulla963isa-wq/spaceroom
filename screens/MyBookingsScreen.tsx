@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   Modal,
@@ -7,78 +7,151 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import firestore from "@react-native-firebase/firestore";
+import { useAuth } from "../context/AuthContext";
 import { COLORS } from "../constants/colors";
 
 const diwanImg = require("../assets/images/diwan.jpg");
 const savoyImg = require("../assets/images/savoy.jpg");
 
+const VENUE_IMAGES: Record<string, any> = {
+  "diwan-hub": diwanImg,
+  "savoy-lounge": savoyImg,
+};
+
 type Booking = {
   id: string;
+  userId: string;
+  venueId: string;
   venueName: string;
   spaceName: string;
   date: string;
+  fullDate: string;
   time: string;
-  duration: string;
+  duration: number;
+  total: number;
   status: string;
-  price: string;
   image: any;
 };
 
+// Get current Bahrain date + hour
+const getBahrainNow = () => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bahrain",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(new Date());
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value || "0";
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    hour: Number(get("hour")),
+  };
+};
+
+// Convert "10:00 AM" / "1:00 PM" → 24h integer
+const to24h = (time: string): number => {
+  const [clock, mod] = time.split(" ");
+  let [h] = clock.split(":").map(Number);
+  if (mod === "PM" && h !== 12) h += 12;
+  if (mod === "AM" && h === 12) h = 0;
+  return h;
+};
+
+// Has this booking's date+time already passed in Bahrain?
+const isPast = (date: string, time: string): boolean => {
+  const bh = getBahrainNow();
+  if (date < bh.date) return true;
+  if (date > bh.date) return false;
+  return to24h(time) <= bh.hour; // same day, hour has passed
+};
+
+// Derive the display status purely from date/time — no Firestore write needed
+const deriveStatus = (firestoreStatus: string, date: string, time: string): string => {
+  if (firestoreStatus === "Cancelled") return "Cancelled";
+  if (isPast(date, time)) return "Completed";
+  return "Confirmed";
+};
+
 const MyBookingsScreen = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"Upcoming" | "Past">("Upcoming");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
-  const upcomingBookings: Booking[] = [
-    {
-      id: "1",
-      venueName: "Diwan Hub, Adliya",
-      spaceName: "Meeting Room",
-      date: "14 Apr 2026",
-      time: "10:00 AM",
-      duration: "2 hours",
-      status: "Confirmed",
-      price: "BHD 11.00",
-      image: diwanImg,
-    },
-    {
-      id: "2",
-      venueName: "Savoy Hotel Lounge",
-      spaceName: "Private Lounge",
-      date: "18 Apr 2026",
-      time: "6:30 PM",
-      duration: "3 hours",
-      status: "Confirmed",
-      price: "BHD 24.00",
-      image: savoyImg,
-    },
-  ];
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-  const pastBookings: Booking[] = [
+    setLoading(true);
+
+    const unsubscribe = firestore()
+      .collection("bookings")
+      .where("userId", "==", user.uid)
+      .orderBy("date", "desc")
+      .onSnapshot(
+        (snapshot) => {
+          const all: Booking[] = snapshot.docs.map((doc) => {
+            const d = doc.data();
+
+            // Derive status locally — no Firestore update required
+            const status = deriveStatus(d.status, d.date, d.time);
+
+            return {
+              id: doc.id,
+              userId: d.userId,
+              venueId: d.venueId,
+              venueName: d.venueName,
+              spaceName: d.spaceName,
+              date: d.date,
+              fullDate: d.fullDate,
+              time: d.time,
+              duration: d.duration,
+              total: d.total,
+              status,
+              image: VENUE_IMAGES[d.venueId] ?? diwanImg,
+            };
+          });
+
+          setAllBookings(all);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Firestore error:", error);
+          setLoading(false);
+        }
+      );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Filter tabs using the same isPast logic
+  const bookings =
+    activeTab === "Upcoming"
+      ? allBookings.filter((b) => !isPast(b.date, b.time) && b.status !== "Cancelled")
+      : allBookings.filter((b) => isPast(b.date, b.time) || b.status === "Cancelled");
+
+  const detailRows = (b: Booking) => [
+    { label: "Booking ID", value: `#BK-${b.id.slice(0, 8).toUpperCase()}` },
+    { label: "Date", value: b.fullDate },
+    { label: "Time", value: b.time },
     {
-      id: "3",
-      venueName: "Diwan Hub, Adliya",
-      spaceName: "Board Room",
-      date: "02 Apr 2026",
-      time: "1:00 PM",
-      duration: "1 hour",
-      status: "Completed",
-      price: "BHD 14.30",
-      image: diwanImg,
+      label: "Duration",
+      value: `${b.duration} ${b.duration === 1 ? "hour" : "hours"}`,
     },
-  ];
-
-  const bookings = activeTab === "Upcoming" ? upcomingBookings : pastBookings;
-
-  const detailRows = (booking: Booking) => [
-    { label: "Booking ID", value: `#BK-2026-00${booking.id}` },
-    { label: "Date", value: booking.date },
-    { label: "Time", value: booking.time },
-    { label: "Duration", value: booking.duration },
-    { label: "Status", value: booking.status, isStatus: true },
-    { label: "Total paid", value: booking.price, isPrice: true },
+    { label: "Status", value: b.status, isStatus: true },
+    { label: "Total paid", value: `BHD ${b.total.toFixed(2)}`, isPrice: true },
   ];
 
   return (
@@ -89,6 +162,7 @@ const MyBookingsScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>My Bookings</Text>
             <Text style={styles.subtitle}>
@@ -96,46 +170,39 @@ const MyBookingsScreen = () => {
             </Text>
           </View>
 
+          {/* Tab Switch */}
           <View style={styles.switchWrapper}>
-            <TouchableOpacity
-              style={[
-                styles.switchButton,
-                activeTab === "Upcoming" && styles.activeSwitchButton,
-              ]}
-              onPress={() => setActiveTab("Upcoming")}
-              activeOpacity={0.8}
-            >
-              <Text
+            {(["Upcoming", "Past"] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
                 style={[
-                  styles.switchText,
-                  activeTab === "Upcoming" && styles.activeSwitchText,
+                  styles.switchButton,
+                  activeTab === tab && styles.activeSwitchButton,
                 ]}
+                onPress={() => setActiveTab(tab)}
+                activeOpacity={0.8}
               >
-                Upcoming
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.switchButton,
-                activeTab === "Past" && styles.activeSwitchButton,
-              ]}
-              onPress={() => setActiveTab("Past")}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.switchText,
-                  activeTab === "Past" && styles.activeSwitchText,
-                ]}
-              >
-                Past
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.switchText,
+                    activeTab === tab && styles.activeSwitchText,
+                  ]}
+                >
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
+          {/* Booking Cards */}
           <View style={styles.cardsWrapper}>
-            {bookings.length > 0 ? (
+            {loading ? (
+              <ActivityIndicator
+                color={COLORS.primary}
+                size="large"
+                style={{ marginTop: 60 }}
+              />
+            ) : bookings.length > 0 ? (
               bookings.map((booking) => (
                 <View key={booking.id} style={styles.card}>
                   <Image source={booking.image} style={styles.cardImage} />
@@ -143,14 +210,19 @@ const MyBookingsScreen = () => {
                   <View style={styles.cardContent}>
                     <View style={styles.topRow}>
                       <View style={styles.titleWrapper}>
-                        <Text style={styles.spaceName}>{booking.spaceName}</Text>
-                        <Text style={styles.venueName}>{booking.venueName}</Text>
+                        <Text style={styles.spaceName}>
+                          {booking.spaceName}
+                        </Text>
+                        <Text style={styles.venueName}>
+                          {booking.venueName}
+                        </Text>
                       </View>
 
                       <View
                         style={[
                           styles.statusBadge,
-                          booking.status === "Completed" && styles.completedBadge,
+                          booking.status === "Completed" &&
+                            styles.completedBadge,
                         ]}
                       >
                         <Text
@@ -165,24 +237,25 @@ const MyBookingsScreen = () => {
                       </View>
                     </View>
 
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Date</Text>
-                      <Text style={styles.infoValue}>{booking.date}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Time</Text>
-                      <Text style={styles.infoValue}>{booking.time}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Duration</Text>
-                      <Text style={styles.infoValue}>{booking.duration}</Text>
-                    </View>
+                    {[
+                      ["Date", booking.fullDate],
+                      ["Time", booking.time],
+                      [
+                        "Duration",
+                        `${booking.duration} ${booking.duration === 1 ? "hour" : "hours"}`,
+                      ],
+                    ].map(([label, value]) => (
+                      <View key={label} style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>{label}</Text>
+                        <Text style={styles.infoValue}>{value}</Text>
+                      </View>
+                    ))}
 
                     <View style={styles.infoRow}>
                       <Text style={styles.infoLabel}>Total</Text>
-                      <Text style={styles.priceValue}>{booking.price}</Text>
+                      <Text style={styles.priceValue}>
+                        BHD {booking.total.toFixed(2)}
+                      </Text>
                     </View>
 
                     <TouchableOpacity
@@ -221,7 +294,12 @@ const MyBookingsScreen = () => {
         />
 
         {selectedBooking && (
-          <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View
+            style={[
+              styles.bottomSheet,
+              { paddingBottom: insets.bottom + 20 },
+            ]}
+          >
             <View style={styles.dragHandle} />
 
             <View style={styles.sheetHeader}>
@@ -235,10 +313,17 @@ const MyBookingsScreen = () => {
             </View>
 
             <View style={styles.sheetVenueCard}>
-              <Image source={selectedBooking.image} style={styles.sheetImage} />
+              <Image
+                source={selectedBooking.image}
+                style={styles.sheetImage}
+              />
               <View style={styles.sheetVenueInfo}>
-                <Text style={styles.sheetSpaceName}>{selectedBooking.spaceName}</Text>
-                <Text style={styles.sheetVenueName}>{selectedBooking.venueName}</Text>
+                <Text style={styles.sheetSpaceName}>
+                  {selectedBooking.spaceName}
+                </Text>
+                <Text style={styles.sheetVenueName}>
+                  {selectedBooking.venueName}
+                </Text>
               </View>
             </View>
 
@@ -257,7 +342,8 @@ const MyBookingsScreen = () => {
                     <View
                       style={[
                         styles.statusBadge,
-                        selectedBooking.status === "Completed" && styles.completedBadge,
+                        selectedBooking.status === "Completed" &&
+                          styles.completedBadge,
                       ]}
                     >
                       <Text
@@ -283,8 +369,6 @@ const MyBookingsScreen = () => {
                 </View>
               ))}
             </View>
-
-
           </View>
         )}
       </Modal>
@@ -461,8 +545,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 21,
   },
-
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.55)",
@@ -561,5 +643,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-
 });

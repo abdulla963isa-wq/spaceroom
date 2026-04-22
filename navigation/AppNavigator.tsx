@@ -27,6 +27,20 @@ enableScreens();
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+function HomeStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
+      <Stack.Screen name="Booking" component={BookingScreen} />
+      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+      <Stack.Screen name="Favourites" component={FavouritesScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -43,7 +57,7 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <View
@@ -137,12 +151,6 @@ function Navigation() {
       ) : (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="SpaceDetails" component={SpaceDetailsScreen} />
-          <Stack.Screen name="Booking" component={BookingScreen} />
-          <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
-          <Stack.Screen name="Favourites" component={FavouritesScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
         </>
       )}
     </Stack.Navigator>
