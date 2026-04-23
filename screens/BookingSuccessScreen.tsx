@@ -71,21 +71,34 @@ const BookingSuccessScreen = () => {
           </View>
         </View>
 
-       <TouchableOpacity
-  style={styles.primaryButton}
-  activeOpacity={0.8}
-  onPress={() => navigation.navigate("MainTabs", { screen: "Bookings" })}
->
-  <Text style={styles.primaryButtonText}>View Booking</Text>
-</TouchableOpacity>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate("MainTabs", { screen: "Bookings" })}
+        >
+          <Text style={styles.primaryButtonText}>View Booking</Text>
+        </TouchableOpacity>
 
-<TouchableOpacity
-  style={styles.secondaryButton}
-  activeOpacity={0.8}
-  onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
->
-  <Text style={styles.secondaryButtonText}>Back to Home</Text>
-</TouchableOpacity>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: "MainTabs",
+                  state: {
+                    routes: [{ name: "Home" }],
+                    index: 0,
+                  },
+                },
+              ],
+            })
+          }
+        >
+          <Text style={styles.secondaryButtonText}>Back to Home</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

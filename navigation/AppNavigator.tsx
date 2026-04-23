@@ -41,6 +41,25 @@ function HomeStack() {
   );
 }
 
+function BookingsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="BookingsMain" component={MyBookingsScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function AccountStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AccountMain" component={ProfileScreen} />
+      <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
+      <Stack.Screen name="Favourites" component={FavouritesScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -80,7 +99,7 @@ function MainTabs() {
 
       <Tab.Screen
         name="Bookings"
-        component={MyBookingsScreen}
+        component={BookingsStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <View
@@ -103,7 +122,7 @@ function MainTabs() {
 
       <Tab.Screen
         name="Account"
-        component={ProfileScreen}
+        component={AccountStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <View

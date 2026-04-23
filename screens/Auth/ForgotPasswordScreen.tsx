@@ -11,10 +11,12 @@ import {
 } from "react-native";
 import auth from "@react-native-firebase/auth";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../../constants/colors";
 
 const ForgetPasswordScreen = () => {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,11 +52,20 @@ const ForgetPasswordScreen = () => {
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      {/* BACK BUTTON */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.backArrow}>←</Text>
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Forgot Password</Text>
 
         <Text style={styles.subtitle}>
-          Enter your email and we’ll send you a reset link
+          Enter your email and we'll send you a reset link
         </Text>
 
         {/* EMAIL INPUT */}
@@ -103,9 +114,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
 
+  backButton: {
+    marginTop: 12,
+    marginLeft: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  backArrow: {
+    fontSize: 20,
+    color: COLORS.textPrimary,
+    lineHeight: 22,
+  },
+
   container: {
     paddingHorizontal: 28,
-    paddingTop: 80,
+    paddingTop: 40,
   },
 
   title: {

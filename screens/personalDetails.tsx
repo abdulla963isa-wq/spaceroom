@@ -12,11 +12,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import auth from "@react-native-firebase/auth";
+import firestore from "@react-native-firebase/firestore";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../context/AuthContext";
 
 const PersonalDetailsScreen = () => {
-  const { user, getUserProfile, updateUserProfile } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
@@ -30,16 +31,24 @@ const PersonalDetailsScreen = () => {
   useEffect(() => {
     const loadProfile = async () => {
       if (user) {
-        const profile = await getUserProfile();
-        if (profile) {
-          setDateOfBirth(profile.dateOfBirth || "");
-          setPhoneNumber(profile.phoneNumber || "");
+        try {
+          const doc = await firestore()
+            .collection("users")
+            .doc(user.uid)
+            .get();
+          if (doc.exists()) {
+            const data = doc.data();
+            setDateOfBirth(data?.dateOfBirth || "");
+            setPhoneNumber(data?.phoneNumber || "");
+          }
+        } catch (e) {
+          console.log("Failed to load profile", e);
         }
       }
       setInitialLoading(false);
     };
     loadProfile();
-  }, [user, getUserProfile]);
+  }, [user]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -49,13 +58,22 @@ const PersonalDetailsScreen = () => {
 
     try {
       setLoading(true);
+
       await auth().currentUser?.updateProfile({
         displayName: name.trim(),
       });
-      await updateUserProfile({
-        dateOfBirth: dateOfBirth.trim(),
-        phoneNumber: phoneNumber.trim(),
-      });
+
+      await firestore()
+        .collection("users")
+        .doc(user?.uid)
+        .set(
+          {
+            dateOfBirth: dateOfBirth.trim(),
+            phoneNumber: phoneNumber.trim(),
+          },
+          { merge: true }
+        );
+
       await auth().currentUser?.reload();
       Alert.alert("Success", "Profile updated successfully");
       navigation.goBack();
@@ -92,7 +110,6 @@ const PersonalDetailsScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* FORM */}
           <View style={styles.section}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput
@@ -133,13 +150,12 @@ const PersonalDetailsScreen = () => {
             />
           </View>
 
-          {/* SAVE BUTTON */}
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.disabledButton]}
             onPress={handleSave}
             disabled={loading}
           >
-            <Text >
+            <Text style={styles.saveButtonText}>
               {loading ? "Saving..." : "Save Changes"}
             </Text>
           </TouchableOpacity>
@@ -223,11 +239,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.black,
+  },
   disabledButton: {
     opacity: 0.6,
   },
   center: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },

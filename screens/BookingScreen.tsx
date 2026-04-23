@@ -7,7 +7,7 @@ import {
   View,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import firestore from "@react-native-firebase/firestore";
 import { COLORS } from "../constants/colors";
@@ -21,20 +21,29 @@ type DateItem = {
   rawDate: Date;
 };
 
-const bookingItem = {
-  venueId: "diwan-hub",
-  venueName: "Diwan Hub, Adliya",
-  spaceName: "Meeting Room",
-  pricePerHour: 5.5,
-  location: "Block 338, Adliya",
+type RouteParams = {
+  spaceId: string;
+  spaceName: string;
+  venueName: string;
+  location: string;
+  pricePerHour: number;
 };
+
+const VENUE_ID = "diwan-hub";
 
 const BookingScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute();
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
 
-  // Returns current date/time parts in Bahrain timezone
+  const { spaceName, venueName, location, pricePerHour } =
+    route.params as RouteParams;
+
+  const [fullyBookedDates, setFullyBookedDates] = useState<string[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const getBahrainParts = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -45,31 +54,21 @@ const BookingScreen = () => {
       hour: "2-digit",
       hour12: false,
     });
-
     const parts = formatter.formatToParts(now);
     const get = (type: string) =>
       parts.find((p) => p.type === type)?.value || "";
-
     return {
       date: `${get("year")}-${get("month")}-${get("day")}`,
       hour: Number(get("hour")),
     };
   };
 
-  // Generate dates using Bahrain's current date as "today"
   const generateUpcomingDates = (count: number): DateItem[] => {
     const bh = getBahrainParts();
-
-    // Build a Date object that represents midnight in Bahrain
-    // by constructing from the YYYY-MM-DD string as local noon UTC+3
     const [year, month, day] = bh.date.split("-").map(Number);
-
     return Array.from({ length: count }, (_, index) => {
-      // Create a UTC date offset to represent Bahrain's calendar day
       const current = new Date(Date.UTC(year, month - 1, day + index, 0, 0, 0));
-
-      const id = current.toISOString().split("T")[0]; // YYYY-MM-DD (UTC = BH date)
-
+      const id = current.toISOString().split("T")[0];
       return {
         id,
         shortDay: current.toLocaleDateString("en-US", {
@@ -106,6 +105,8 @@ const BookingScreen = () => {
     "6:00 PM",
   ];
 
+  const TOTAL_SLOTS = allTimeSlots.length;
+
   const durationOptions = [
     { hours: 1, label: "1 hour" },
     { hours: 2, label: "2 hours" },
@@ -116,10 +117,8 @@ const BookingScreen = () => {
   ];
 
   const [selectedDateId, setSelectedDateId] = useState(dates[0].id);
-  const [selectedTime, setSelectedTime] = useState("10:00 AM");
-  const [selectedDuration, setSelectedDuration] = useState(6);
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedTime, setSelectedTime] = useState<string>("");
+  const [selectedDuration, setSelectedDuration] = useState(1);
 
   const selectedDate = useMemo(
     () => dates.find((item) => item.id === selectedDateId) || dates[0],
@@ -127,86 +126,107 @@ const BookingScreen = () => {
   );
 
   const total = useMemo(
-    () => (bookingItem.pricePerHour * selectedDuration).toFixed(2),
-    [selectedDuration]
+    () => (pricePerHour * selectedDuration).toFixed(2),
+    [pricePerHour, selectedDuration]
   );
 
   const convertTo24Hour = (time: string) => {
     const [clock, modifier] = time.split(" ");
     let [hours] = clock.split(":").map(Number);
-
     if (modifier === "PM" && hours !== 12) hours += 12;
     if (modifier === "AM" && hours === 12) hours = 0;
-
     return hours;
   };
 
-  // Filter out past time slots when today is selected (Bahrain time)
-  const timeSlots = useMemo(() => {
+  const timeSlotsForDay = useMemo(() => {
     const bh = getBahrainParts();
-
-    if (selectedDateId !== bh.date) {
-      return allTimeSlots;
-    }
-
-    return allTimeSlots.filter((slot) => {
-      const slotHour = convertTo24Hour(slot);
-      return slotHour > bh.hour;
-    });
+    if (selectedDateId !== bh.date) return allTimeSlots;
+    return allTimeSlots.filter(
+      (slot) => convertTo24Hour(slot) > bh.hour
+    );
   }, [selectedDateId]);
 
+  const availableTimeSlots = useMemo(
+    () => timeSlotsForDay.filter((slot) => !bookedSlots.includes(slot)),
+    [timeSlotsForDay, bookedSlots]
+  );
+
   useEffect(() => {
-    if (!timeSlots.includes(selectedTime) && timeSlots.length > 0) {
-      setSelectedTime(timeSlots[0]);
+    if (availableTimeSlots.length > 0) {
+      if (!availableTimeSlots.includes(selectedTime)) {
+        setSelectedTime(availableTimeSlots[0]);
+      }
+    } else {
+      setSelectedTime("");
     }
-  }, [timeSlots]);
+  }, [availableTimeSlots]);
+
+  const isRoomUnavailable = useMemo(
+    () => dates.every((d) => fullyBookedDates.includes(d.id)),
+    [dates, fullyBookedDates]
+  );
 
   useEffect(() => {
     const unsubscribe = firestore()
       .collection("bookings")
-      .where("venueId", "==", bookingItem.venueId)
-      .where("spaceName", "==", bookingItem.spaceName)
-      .where("date", "==", selectedDateId)
-      .onSnapshot(
-        (snapshot) => {
-          const taken = snapshot.docs
-            .filter((doc) => doc.data()?.status === "Confirmed")
-            .map((doc) => doc.data()?.time as string);
+      .where("venueId", "==", VENUE_ID)
+      .where("spaceName", "==", spaceName)
+      .where("status", "==", "Confirmed")
+      .onSnapshot((snapshot) => {
+        const byDate: Record<string, Set<string>> = {};
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          if (!data?.date || !data?.time) return;
+          if (!byDate[data.date]) byDate[data.date] = new Set();
+          byDate[data.date].add(data.time);
+        });
 
-          setBookedSlots(taken);
+        const fullyBooked = Object.entries(byDate)
+          .filter(([, slots]) => slots.size >= TOTAL_SLOTS)
+          .map(([date]) => date);
 
-          if (taken.includes(selectedTime)) {
-            const next = timeSlots.find((t) => !taken.includes(t));
-            if (next) setSelectedTime(next);
-          }
-        },
-        (error) => {
-          console.log("Firestore Error:", error);
-          setBookedSlots([]);
-        }
-      );
+        setFullyBookedDates(fullyBooked);
+      });
 
     return () => unsubscribe();
-  }, [selectedDateId, selectedTime, timeSlots]);
+  }, [spaceName]);
+
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection("bookings")
+      .where("venueId", "==", VENUE_ID)
+      .where("spaceName", "==", spaceName)
+      .where("date", "==", selectedDateId)
+      .where("status", "==", "Confirmed")
+      .onSnapshot((snapshot) => {
+        const taken = snapshot.docs.map((doc) => doc.data()?.time as string);
+        setBookedSlots(taken);
+      });
+
+    return () => unsubscribe();
+  }, [spaceName, selectedDateId]);
 
   const handleBooking = async () => {
     if (!user) {
-      Alert.alert(
-        "Login Required",
-        "You have to log in to make a booking.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Login", onPress: async () => await logout() },
-        ]
-      );
+      Alert.alert("Login Required", "You have to log in to make a booking.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Login", onPress: async () => await logout() },
+      ]);
       return;
     }
 
-    if (bookedSlots.includes(selectedTime)) {
-      Alert.alert(
-        "Slot Unavailable",
-        "This time slot was just booked. Please choose another time."
-      );
+    if (isRoomUnavailable) {
+      Alert.alert("Room Unavailable", "This room is fully booked for all available dates.");
+      return;
+    }
+
+    if (fullyBookedDates.includes(selectedDateId)) {
+      Alert.alert("Unavailable", "This room is fully booked for this date.");
+      return;
+    }
+
+    if (!selectedTime) {
+      Alert.alert("No Slot Selected", "Please choose an available time slot.");
       return;
     }
 
@@ -216,33 +236,27 @@ const BookingScreen = () => {
       await firestore().runTransaction(async (tx) => {
         const existing = await firestore()
           .collection("bookings")
-          .where("venueId", "==", bookingItem.venueId)
-          .where("spaceName", "==", bookingItem.spaceName)
+          .where("venueId", "==", VENUE_ID)
+          .where("spaceName", "==", spaceName)
           .where("date", "==", selectedDateId)
           .where("time", "==", selectedTime)
+          .where("status", "==", "Confirmed")
           .get();
 
-        const alreadyBooked = existing.docs.some(
-          (doc) => doc.data()?.status === "Confirmed"
-        );
-
-        if (alreadyBooked) {
-          throw new Error("SLOT_TAKEN");
-        }
+        if (!existing.empty) throw new Error("SLOT_TAKEN");
 
         const newDocRef = firestore().collection("bookings").doc();
-
         tx.set(newDocRef, {
           userId: user.uid,
-          venueId: bookingItem.venueId,
-          venueName: bookingItem.venueName,
-          spaceName: bookingItem.spaceName,
-          location: bookingItem.location,
+          venueId: VENUE_ID,
+          venueName,
+          spaceName,
+          location,
           date: selectedDateId,
           fullDate: selectedDate.fullDate,
           time: selectedTime,
           duration: selectedDuration,
-          pricePerHour: bookingItem.pricePerHour,
+          pricePerHour,
           total: parseFloat(total),
           status: "Confirmed",
           createdAt: firestore.FieldValue.serverTimestamp(),
@@ -252,12 +266,8 @@ const BookingScreen = () => {
       navigation.navigate("BookingSuccess");
     } catch (err: any) {
       if (err.message === "SLOT_TAKEN") {
-        Alert.alert(
-          "Slot Unavailable",
-          "Someone just booked this slot. Please pick another time."
-        );
+        Alert.alert("Slot Unavailable", "Someone just booked this slot. Please pick another time.");
       } else {
-        console.error(err);
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
     } finally {
@@ -282,15 +292,23 @@ const BookingScreen = () => {
             </TouchableOpacity>
 
             <Text style={styles.smallLabel}>Booking</Text>
-            <Text style={styles.title}>{bookingItem.spaceName}</Text>
-            <Text style={styles.subtitle}>{bookingItem.venueName}</Text>
-            <Text style={styles.location}>{bookingItem.location}</Text>
+
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{spaceName}</Text>
+              {isRoomUnavailable && (
+                <View style={styles.unavailablePill}>
+                  <Text style={styles.unavailablePillText}>Unavailable</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.subtitle}>{venueName}</Text>
+            <Text style={styles.location}>{location}</Text>
           </View>
 
           {/* DATE */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Select Date</Text>
-
             <View style={styles.dateWrapper}>
               <ScrollView
                 horizontal
@@ -299,13 +317,15 @@ const BookingScreen = () => {
               >
                 {dates.map((item) => {
                   const isSelected = selectedDateId === item.id;
-
+                  const isFullyBooked = fullyBookedDates.includes(item.id);
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      disabled={isFullyBooked}
                       style={[
                         styles.dateCard,
                         isSelected && styles.selectedDateCard,
+                        isFullyBooked && { opacity: 0.3 },
                       ]}
                       onPress={() => setSelectedDateId(item.id)}
                     >
@@ -317,7 +337,6 @@ const BookingScreen = () => {
                       >
                         {item.shortDay}
                       </Text>
-
                       <Text
                         style={[
                           styles.dateNumberText,
@@ -330,7 +349,6 @@ const BookingScreen = () => {
                   );
                 })}
               </ScrollView>
-
               <View style={styles.arrowCircle} pointerEvents="none">
                 <Text style={styles.arrowText}>›</Text>
               </View>
@@ -340,34 +358,34 @@ const BookingScreen = () => {
           {/* TIME */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Select Time</Text>
-
             <View style={styles.wrapRow}>
-              {timeSlots.length === 0 ? (
-                <Text style={styles.noSlotsText}>No time slots available</Text>
+              {timeSlotsForDay.length === 0 ? (
+                <Text style={styles.noSlotsText}>
+                  No available time slots for this date
+                </Text>
               ) : (
-                timeSlots.map((slot) => {
+                timeSlotsForDay.map((slot) => {
                   const isSelected = selectedTime === slot;
                   const isBooked = bookedSlots.includes(slot);
-
                   return (
                     <TouchableOpacity
                       key={slot}
-                      disabled={isBooked}
                       style={[
                         styles.optionChip,
                         isSelected && styles.selectedOptionChip,
-                        isBooked && styles.bookedChip,
+                        isBooked && styles.bookedOptionChip,
                       ]}
-                      onPress={() => setSelectedTime(slot)}
+                      onPress={() => !isBooked && setSelectedTime(slot)}
+                      disabled={isBooked}
                     >
                       <Text
                         style={[
                           styles.optionText,
                           isSelected && styles.selectedOptionText,
-                          isBooked && styles.bookedChipText,
+                          isBooked && styles.bookedOptionText,
                         ]}
                       >
-                        {slot} {isBooked ? "✕" : ""}
+                        {slot}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -379,11 +397,9 @@ const BookingScreen = () => {
           {/* DURATION */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Duration</Text>
-
             <View style={styles.wrapRow}>
               {durationOptions.map((option) => {
                 const isSelected = selectedDuration === option.hours;
-
                 return (
                   <TouchableOpacity
                     key={option.hours}
@@ -410,21 +426,22 @@ const BookingScreen = () => {
           {/* SUMMARY */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Booking Summary</Text>
-
             {[
-              ["Venue", bookingItem.venueName],
-              ["Space", bookingItem.spaceName],
+              ["Venue", venueName],
+              ["Space", spaceName],
               ["Date", selectedDate.fullDate],
-              ["Time", selectedTime],
-              ["Duration", `${selectedDuration} hours`],
-              ["Rate", `BHD ${bookingItem.pricePerHour}/hour`],
+              ["Time", selectedTime || "—"],
+              [
+                "Duration",
+                `${selectedDuration} hour${selectedDuration > 1 ? "s" : ""}`,
+              ],
+              ["Rate", `BHD ${pricePerHour}/hour`],
             ].map(([label, value]) => (
               <View key={label} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{label}</Text>
                 <Text style={styles.summaryValue}>{value}</Text>
               </View>
             ))}
-
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>BHD {total}</Text>
@@ -432,16 +449,24 @@ const BookingScreen = () => {
           </View>
 
           <TouchableOpacity
-            style={[styles.confirmButton, loading && { opacity: 0.6 }]}
+            style={[
+              styles.confirmButton,
+              (loading || isRoomUnavailable || !selectedTime) && {
+                opacity: 0.6,
+              },
+            ]}
             onPress={handleBooking}
-            disabled={loading || timeSlots.length === 0}
+            disabled={loading || isRoomUnavailable || !selectedTime}
           >
             <Text style={styles.confirmButtonText}>
-              {loading ? "Confirming..." : "Confirm Booking"}
+              {loading
+                ? "Confirming..."
+                : isRoomUnavailable
+                ? "Room Unavailable"
+                : "Confirm Booking"}
             </Text>
           </TouchableOpacity>
         </ScrollView>
-
       </View>
     </View>
   );
@@ -483,10 +508,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 4,
+  },
+
   title: {
     fontSize: 30,
     fontWeight: "700",
     color: COLORS.textPrimary,
+  },
+
+  unavailablePill: {
+    backgroundColor: "#FF3B3018",
+    borderWidth: 1,
+    borderColor: "#FF3B3050",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+
+  unavailablePillText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FF3B30",
+    letterSpacing: 0.3,
   },
 
   subtitle: {
@@ -593,13 +642,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
 
-  bookedChip: {
-    opacity: 0.4,
-  },
-
-  bookedChipText: {
-    textDecorationLine: "line-through",
-    color: COLORS.textSecondary,
+  bookedOptionChip: {
+    opacity: 0.45,
   },
 
   optionText: {
@@ -609,6 +653,11 @@ const styles = StyleSheet.create({
 
   selectedOptionText: {
     color: COLORS.black,
+  },
+
+  bookedOptionText: {
+    color: COLORS.textSecondary,
+    textDecorationLine: "line-through",
   },
 
   noSlotsText: {

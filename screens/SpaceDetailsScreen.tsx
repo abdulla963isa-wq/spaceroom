@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import firestore from "@react-native-firebase/firestore";
 import { useFavourites } from "../context/FavouritesContext";
 import type { FavouriteItem } from "../context/FavouritesContext";
 
@@ -25,10 +26,54 @@ type SpaceOption = {
   availability: string;
 };
 
+const VENUE_ID = "diwan-hub";
+
+const ALL_TIME_SLOTS = [
+  "9:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+];
+const TOTAL_SLOTS = ALL_TIME_SLOTS.length;
+
+// Returns today + tomorrow as "YYYY-MM-DD" in Bahrain time
+const getUpcomingDateIds = (): string[] => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bahrain",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+  const [year, month, day] = [
+    Number(get("year")),
+    Number(get("month")),
+    Number(get("day")),
+  ];
+
+  return Array.from({ length: 2 }, (_, i) => {
+    const d = new Date(Date.UTC(year, month - 1, day + i));
+    return d.toISOString().split("T")[0];
+  });
+};
+
 const SpaceDetailsScreen = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { toggleFavourite, isFavourite } = useFavourites();
+
+  // spaceName → true if fully booked across all available dates
+  const [unavailableSpaces, setUnavailableSpaces] = useState<
+    Record<string, boolean>
+  >({});
 
   const venue = {
     name: "Diwan Hub, Adliya",
@@ -115,13 +160,61 @@ const SpaceDetailsScreen = () => {
     ] as SpaceOption[],
   };
 
-  // Build a FavouriteItem from a space option
+  // ✅ Real-time Firestore listener — checks all spaces at once
+  useEffect(() => {
+    const upcomingDates = getUpcomingDateIds();
+
+    const unsubscribe = firestore()
+      .collection("bookings")
+      .where("venueId", "==", VENUE_ID)
+      .where("status", "==", "Confirmed")
+      .onSnapshot((snapshot) => {
+        // { spaceName: { date: Set<time> } }
+        const slotsBySpace: Record<string, Record<string, Set<string>>> = {};
+
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const { spaceName, date, time } = data;
+          if (!spaceName || !date || !time) return;
+          if (!upcomingDates.includes(date)) return;
+
+          if (!slotsBySpace[spaceName]) slotsBySpace[spaceName] = {};
+          if (!slotsBySpace[spaceName][date])
+            slotsBySpace[spaceName][date] = new Set();
+          slotsBySpace[spaceName][date].add(time);
+        });
+
+        const result: Record<string, boolean> = {};
+
+        venue.options.forEach((option) => {
+          const byDate = slotsBySpace[option.title] || {};
+          // Unavailable only if ALL upcoming dates are fully booked
+          const allFull = upcomingDates.every(
+            (date) => (byDate[date]?.size ?? 0) >= TOTAL_SLOTS
+          );
+          result[option.title] = allFull;
+        });
+
+        setUnavailableSpaces(result);
+      });
+
+    return () => unsubscribe();
+  }, []);
+
   const toFavouriteItem = (option: SpaceOption): FavouriteItem => ({
     id: option.id,
     venueName: venue.name,
     spaceName: option.title,
     location: venue.location,
     pricePerHour: option.pricePerHour,
+  });
+
+  // ✅ Sort: available spaces first, unavailable spaces last
+  const sortedOptions = [...venue.options].sort((a, b) => {
+    const aUnavailable = unavailableSpaces[a.title] === true;
+    const bUnavailable = unavailableSpaces[b.title] === true;
+    if (aUnavailable === bUnavailable) return 0;
+    return aUnavailable ? 1 : -1;
   });
 
   return (
@@ -161,9 +254,10 @@ const SpaceDetailsScreen = () => {
         </View>
 
         <View style={styles.optionsSection}>
-          {venue.options.map((option, index) => {
+          {sortedOptions.map((option, index) => {
             const fav = toFavouriteItem(option);
             const favourited = isFavourite(fav.id);
+            const isUnavailable = unavailableSpaces[option.title] === true;
 
             return (
               <View
@@ -174,9 +268,26 @@ const SpaceDetailsScreen = () => {
                 ]}
               >
                 <View style={styles.imageWrapper}>
-                  <Image source={{ uri: option.image }} style={styles.optionImage} />
+                  <Image
+                    source={{ uri: option.image }}
+                    style={[
+                      styles.optionImage,
+                      isUnavailable && styles.optionImageDimmed,
+                    ]}
+                  />
 
-                  {/* ✅ Heart uses shared FavouritesContext */}
+                  {/* ✅ Unavailable badge overlaid on image */}
+                  {isUnavailable && (
+                    <View style={styles.unavailableOverlay}>
+                      <View style={styles.unavailableBadge}>
+                        <Text style={styles.unavailableBadgeText}>
+                          🚫 Unavailable
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Heart button */}
                   <TouchableOpacity
                     style={styles.favoriteButton}
                     onPress={() => toggleFavourite(fav)}
@@ -194,8 +305,21 @@ const SpaceDetailsScreen = () => {
                 </View>
 
                 <View style={styles.optionContent}>
-                  <Text style={styles.optionTitle}>{option.title}</Text>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  {/* ✅ Title row with inline pill */}
+                  <View style={styles.titleRow}>
+                    <Text style={styles.optionTitle}>{option.title}</Text>
+                    {isUnavailable && (
+                      <View style={styles.unavailablePill}>
+                        <Text style={styles.unavailablePillText}>
+                          Unavailable
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.optionDescription}>
+                    {option.description}
+                  </Text>
 
                   <View style={styles.optionTagsContainer}>
                     {option.tags.map((tag, tagIndex) => (
@@ -212,11 +336,17 @@ const SpaceDetailsScreen = () => {
                   </View>
 
                   <Text style={styles.optionPrice}>{option.price}</Text>
-                  <Text style={styles.optionAvailability}>{option.availability}</Text>
+                  <Text style={styles.optionAvailability}>
+                    {option.availability}
+                  </Text>
 
-                  {/* ✅ Pass space data to BookingScreen */}
+                  {/* ✅ Book Now disabled + greyed when unavailable */}
                   <TouchableOpacity
-                    style={styles.bookButton}
+                    style={[
+                      styles.bookButton,
+                      isUnavailable && styles.bookButtonDisabled,
+                    ]}
+                    disabled={isUnavailable}
                     onPress={() =>
                       navigation.navigate("Booking", {
                         spaceId: option.id,
@@ -227,7 +357,14 @@ const SpaceDetailsScreen = () => {
                       })
                     }
                   >
-                    <Text style={styles.bookButtonText}>Book Now</Text>
+                    <Text
+                      style={[
+                        styles.bookButtonText,
+                        isUnavailable && styles.bookButtonTextDisabled,
+                      ]}
+                    >
+                      {isUnavailable ? "Fully Booked" : "Book Now"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -355,6 +492,33 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 18,
   },
+  optionImageDimmed: {
+    opacity: 0.45,
+  },
+
+  // ✅ Dark overlay + centred badge on the image
+  unavailableOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  unavailableBadge: {
+    backgroundColor: "rgba(255,59,48,0.18)",
+    borderWidth: 1.5,
+    borderColor: "#FF3B30",
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  unavailableBadgeText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FF3B30",
+    letterSpacing: 0.4,
+  },
+
   favoriteButton: {
     position: "absolute",
     top: 14,
@@ -376,12 +540,35 @@ const styles = StyleSheet.create({
   optionContent: {
     width: "100%",
   },
+
+  // ✅ Title + pill inline
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 10,
+  },
   optionTitle: {
     fontSize: 26,
     fontWeight: "800",
     color: "#FFFFFF",
-    marginBottom: 10,
   },
+  unavailablePill: {
+    backgroundColor: "rgba(255,59,48,0.15)",
+    borderWidth: 1,
+    borderColor: "#FF3B3060",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  unavailablePillText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FF3B30",
+    letterSpacing: 0.3,
+  },
+
   optionDescription: {
     fontSize: 14,
     lineHeight: 22,
@@ -441,9 +628,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
+  bookButtonDisabled: {
+    backgroundColor: "#1C2431",
+    borderWidth: 1,
+    borderColor: "#3A4454",
+  },
   bookButtonText: {
     color: "#061018",
     fontSize: 14,
     fontWeight: "800",
+  },
+  bookButtonTextDisabled: {
+    color: "#6B7280",
   },
 });
