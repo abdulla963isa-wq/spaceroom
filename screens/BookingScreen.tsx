@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -12,6 +12,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import firestore from "@react-native-firebase/firestore";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../context/AuthContext";
+import {
+  ALL_TIME_SLOTS,
+  calculateEndTime,
+  getCoveredSlots,
+  isBookingOverlap,
+} from "../utils/helpers";
+
+type RouteParams = {
+  venueId: string;
+  venueName: string;
+  location: string;
+  spaceId: string;
+  spaceName: string;
+  pricePerHour: number;
+};
 
 type DateItem = {
   id: string;
@@ -21,28 +36,20 @@ type DateItem = {
   rawDate: Date;
 };
 
-type RouteParams = {
-  spaceId: string;
-  spaceName: string;
-  venueName: string;
-  location: string;
-  pricePerHour: number;
-};
-
-const VENUE_ID = "diwan-hub";
-
 const BookingScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const { spaceName, venueName, location, pricePerHour } =
-    route.params as RouteParams;
-
-  const [fullyBookedDates, setFullyBookedDates] = useState<string[]>([]);
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    venueId,
+    venueName,
+    location,
+    spaceId,
+    spaceName,
+    pricePerHour,
+  } = route.params as RouteParams;
 
   const getBahrainParts = () => {
     const now = new Date();
@@ -92,21 +99,6 @@ const BookingScreen = () => {
 
   const dates = useMemo(() => generateUpcomingDates(14), []);
 
-  const allTimeSlots = [
-    "9:00 AM",
-    "10:00 AM",
-    "11:00 AM",
-    "12:00 PM",
-    "1:00 PM",
-    "2:00 PM",
-    "3:00 PM",
-    "4:00 PM",
-    "5:00 PM",
-    "6:00 PM",
-  ];
-
-  const TOTAL_SLOTS = allTimeSlots.length;
-
   const durationOptions = [
     { hours: 1, label: "1 hour" },
     { hours: 2, label: "2 hours" },
@@ -119,6 +111,8 @@ const BookingScreen = () => {
   const [selectedDateId, setSelectedDateId] = useState(dates[0].id);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedDuration, setSelectedDuration] = useState(1);
+  const [bookingsByDate, setBookingsByDate] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(false);
 
   const selectedDate = useMemo(
     () => dates.find((item) => item.id === selectedDateId) || dates[0],
@@ -140,71 +134,86 @@ const BookingScreen = () => {
 
   const timeSlotsForDay = useMemo(() => {
     const bh = getBahrainParts();
-    if (selectedDateId !== bh.date) return allTimeSlots;
-    return allTimeSlots.filter(
-      (slot) => convertTo24Hour(slot) > bh.hour
-    );
+    if (selectedDateId !== bh.date) return ALL_TIME_SLOTS;
+    return ALL_TIME_SLOTS.filter((slot) => convertTo24Hour(slot) > bh.hour);
   }, [selectedDateId]);
 
-  const availableTimeSlots = useMemo(
-    () => timeSlotsForDay.filter((slot) => !bookedSlots.includes(slot)),
-    [timeSlotsForDay, bookedSlots]
+  const bookedSlots = useMemo(
+    () => bookingsByDate[selectedDateId] ?? [],
+    [bookingsByDate, selectedDateId]
+  );
+
+  const availableStartTimes = useMemo(
+    () =>
+      timeSlotsForDay.filter((slot) => {
+        const covered = getCoveredSlots(slot, selectedDuration, ALL_TIME_SLOTS);
+        return (
+          covered.length === selectedDuration &&
+          !isBookingOverlap(bookedSlots, covered)
+        );
+      }),
+    [timeSlotsForDay, selectedDuration, bookedSlots]
   );
 
   useEffect(() => {
-    if (availableTimeSlots.length > 0) {
-      if (!availableTimeSlots.includes(selectedTime)) {
-        setSelectedTime(availableTimeSlots[0]);
+    if (availableStartTimes.length > 0) {
+      if (!availableStartTimes.includes(selectedTime)) {
+        setSelectedTime(availableStartTimes[0]);
       }
     } else {
       setSelectedTime("");
     }
-  }, [availableTimeSlots]);
+  }, [availableStartTimes]);
 
-  const isRoomUnavailable = useMemo(
-    () => dates.every((d) => fullyBookedDates.includes(d.id)),
-    [dates, fullyBookedDates]
+  const fullyBookedDates = useMemo(
+    () =>
+      Object.entries(bookingsByDate)
+        .filter(([, slots]) => slots.length >= ALL_TIME_SLOTS.length)
+        .map(([date]) => date),
+    [bookingsByDate]
   );
 
+  const isRoomUnavailable = availableStartTimes.length === 0;
+
   useEffect(() => {
+    if (!venueId || !spaceId) return;
+
     const unsubscribe = firestore()
       .collection("bookings")
-      .where("venueId", "==", VENUE_ID)
-      .where("spaceName", "==", spaceName)
+      .where("venueId", "==", venueId)
+      .where("spaceId", "==", spaceId)
       .where("status", "==", "Confirmed")
       .onSnapshot((snapshot) => {
         const byDate: Record<string, Set<string>> = {};
+
         snapshot.docs.forEach((doc) => {
           const data = doc.data();
-          if (!data?.date || !data?.time) return;
-          if (!byDate[data.date]) byDate[data.date] = new Set();
-          byDate[data.date].add(data.time);
+          const reservedSlots = Array.isArray(data.reservedSlots)
+            ? data.reservedSlots
+            : data.time
+            ? [data.time]
+            : [];
+          const date = data.date as string | undefined;
+
+          if (!date) return;
+          if (!byDate[date]) byDate[date] = new Set();
+          reservedSlots.forEach((slot) => {
+            if (slot) byDate[date].add(slot);
+          });
         });
 
-        const fullyBooked = Object.entries(byDate)
-          .filter(([, slots]) => slots.size >= TOTAL_SLOTS)
-          .map(([date]) => date);
+        const normalized: Record<string, string[]> = {};
+        Object.entries(byDate).forEach(([date, slots]) => {
+          normalized[date] = [...slots].sort(
+            (a, b) => ALL_TIME_SLOTS.indexOf(a) - ALL_TIME_SLOTS.indexOf(b)
+          );
+        });
 
-        setFullyBookedDates(fullyBooked);
+        setBookingsByDate(normalized);
       });
 
     return () => unsubscribe();
-  }, [spaceName]);
-
-  useEffect(() => {
-    const unsubscribe = firestore()
-      .collection("bookings")
-      .where("venueId", "==", VENUE_ID)
-      .where("spaceName", "==", spaceName)
-      .where("date", "==", selectedDateId)
-      .where("status", "==", "Confirmed")
-      .onSnapshot((snapshot) => {
-        const taken = snapshot.docs.map((doc) => doc.data()?.time as string);
-        setBookedSlots(taken);
-      });
-
-    return () => unsubscribe();
-  }, [spaceName, selectedDateId]);
+  }, [venueId, spaceId]);
 
   const handleBooking = async () => {
     if (!user) {
@@ -215,58 +224,114 @@ const BookingScreen = () => {
       return;
     }
 
-    if (isRoomUnavailable) {
-      Alert.alert("Room Unavailable", "This room is fully booked for all available dates.");
-      return;
-    }
-
-    if (fullyBookedDates.includes(selectedDateId)) {
-      Alert.alert("Unavailable", "This room is fully booked for this date.");
-      return;
-    }
-
     if (!selectedTime) {
       Alert.alert("No Slot Selected", "Please choose an available time slot.");
       return;
     }
 
+    const reservedSlots = getCoveredSlots(
+      selectedTime,
+      selectedDuration,
+      ALL_TIME_SLOTS
+    );
+
+    if (reservedSlots.length !== selectedDuration) {
+      Alert.alert(
+        "Invalid duration",
+        "Please select a valid start time for the chosen duration."
+      );
+      return;
+    }
+
+    if (isBookingOverlap(bookedSlots, reservedSlots)) {
+      Alert.alert(
+        "Slot Unavailable",
+        "Some of the requested hours are already reserved."
+      );
+      return;
+    }
+
+    const endTime = calculateEndTime(selectedTime, selectedDuration, ALL_TIME_SLOTS);
+
     setLoading(true);
+    let bookingId = "";
 
     try {
       await firestore().runTransaction(async (tx) => {
-        const existing = await firestore()
+        const querySnapshot = await firestore()
           .collection("bookings")
-          .where("venueId", "==", VENUE_ID)
-          .where("spaceName", "==", spaceName)
+          .where("venueId", "==", venueId)
+          .where("spaceId", "==", spaceId)
           .where("date", "==", selectedDateId)
-          .where("time", "==", selectedTime)
           .where("status", "==", "Confirmed")
           .get();
 
-        if (!existing.empty) throw new Error("SLOT_TAKEN");
+        const existingSlots: string[] = [];
+        querySnapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const reserved = Array.isArray(data.reservedSlots)
+            ? data.reservedSlots
+            : data.time
+            ? [data.time]
+            : [];
+          existingSlots.push(...reserved);
+        });
 
-        const newDocRef = firestore().collection("bookings").doc();
-        tx.set(newDocRef, {
+        if (isBookingOverlap(existingSlots, reservedSlots)) {
+          throw new Error("SLOT_TAKEN");
+        }
+
+        const newBookingRef = firestore().collection("bookings").doc();
+        bookingId = newBookingRef.id;
+
+        const bookingPayload = {
           userId: user.uid,
-          venueId: VENUE_ID,
+          venueId,
+          spaceId,
           venueName,
           spaceName,
           location,
           date: selectedDateId,
           fullDate: selectedDate.fullDate,
-          time: selectedTime,
+          startTime: selectedTime,
+          endTime,
           duration: selectedDuration,
+          reservedSlots,
           pricePerHour,
           total: parseFloat(total),
           status: "Confirmed",
           createdAt: firestore.FieldValue.serverTimestamp(),
-        });
+        } as const;
+
+        tx.set(newBookingRef, bookingPayload);
       });
 
-      navigation.navigate("BookingSuccess");
+      navigation.navigate("BookingSuccess", {
+        booking: {
+          id: bookingId,
+          userId: user.uid,
+          venueId,
+          spaceId,
+          venueName,
+          spaceName,
+          location,
+          date: selectedDateId,
+          fullDate: selectedDate.fullDate,
+          startTime: selectedTime,
+          endTime,
+          duration: selectedDuration,
+          reservedSlots,
+          total: parseFloat(total),
+          status: "Confirmed",
+          createdAt: null,
+        },
+      });
     } catch (err: any) {
       if (err.message === "SLOT_TAKEN") {
-        Alert.alert("Slot Unavailable", "Someone just booked this slot. Please pick another time.");
+        Alert.alert(
+          "Slot Unavailable",
+          "Someone just booked this slot. Please pick another time."
+        );
       } else {
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
@@ -276,7 +341,7 @@ const BookingScreen = () => {
   };
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
       <View style={styles.screen}>
         <ScrollView
           style={styles.container}
@@ -306,7 +371,6 @@ const BookingScreen = () => {
             <Text style={styles.location}>{location}</Text>
           </View>
 
-          {/* DATE */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Select Date</Text>
             <View style={styles.dateWrapper}>
@@ -355,7 +419,6 @@ const BookingScreen = () => {
             </View>
           </View>
 
-          {/* TIME */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Select Time</Text>
             <View style={styles.wrapRow}>
@@ -366,23 +429,23 @@ const BookingScreen = () => {
               ) : (
                 timeSlotsForDay.map((slot) => {
                   const isSelected = selectedTime === slot;
-                  const isBooked = bookedSlots.includes(slot);
+                  const isBlocked = !availableStartTimes.includes(slot);
                   return (
                     <TouchableOpacity
                       key={slot}
                       style={[
                         styles.optionChip,
                         isSelected && styles.selectedOptionChip,
-                        isBooked && styles.bookedOptionChip,
+                        isBlocked && styles.bookedOptionChip,
                       ]}
-                      onPress={() => !isBooked && setSelectedTime(slot)}
-                      disabled={isBooked}
+                      onPress={() => !isBlocked && setSelectedTime(slot)}
+                      disabled={isBlocked}
                     >
                       <Text
                         style={[
                           styles.optionText,
                           isSelected && styles.selectedOptionText,
-                          isBooked && styles.bookedOptionText,
+                          isBlocked && styles.bookedOptionText,
                         ]}
                       >
                         {slot}
@@ -394,7 +457,6 @@ const BookingScreen = () => {
             </View>
           </View>
 
-          {/* DURATION */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Duration</Text>
             <View style={styles.wrapRow}>
@@ -423,23 +485,23 @@ const BookingScreen = () => {
             </View>
           </View>
 
-          {/* SUMMARY */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Booking Summary</Text>
             {[
               ["Venue", venueName],
               ["Space", spaceName],
               ["Date", selectedDate.fullDate],
-              ["Time", selectedTime || "—"],
+              ["Start", selectedTime || "—"],
+              ["End", selectedTime ? calculateEndTime(selectedTime, selectedDuration, ALL_TIME_SLOTS) : "—"],
               [
                 "Duration",
                 `${selectedDuration} hour${selectedDuration > 1 ? "s" : ""}`,
               ],
               ["Rate", `BHD ${pricePerHour}/hour`],
             ].map(([label, value]) => (
-              <View key={label} style={styles.summaryRow}>
+              <View key={label as string} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{label}</Text>
-                <Text style={styles.summaryValue}>{value}</Text>
+                <Text style={styles.summaryValue}>{value as string}</Text>
               </View>
             ))}
             <View style={[styles.summaryRow, styles.totalRow]}>
@@ -451,9 +513,7 @@ const BookingScreen = () => {
           <TouchableOpacity
             style={[
               styles.confirmButton,
-              (loading || isRoomUnavailable || !selectedTime) && {
-                opacity: 0.6,
-              },
+              (loading || isRoomUnavailable || !selectedTime) && { opacity: 0.6 },
             ]}
             onPress={handleBooking}
             disabled={loading || isRoomUnavailable || !selectedTime}

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  PermissionsAndroid,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,12 +11,27 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import firestore from "@react-native-firebase/firestore";
+import Geolocation from "react-native-geolocation-service";
 import Header from "../components/Header";
 import SpaceCard from "../components/SpaceCard";
 import { COLORS } from "../constants/colors";
+import type { Space } from "../types/space";
+import type { Venue } from "../types/venue";
+import { getDistanceKm, getImageSource } from "../utils/helpers";
+import { seedAppDataIfEmpty } from "../services/firestoreSeed";
 
-const diwanImg = require("../assets/images/diwan.jpg");
-const savoyImg = require("../assets/images/savoy.jpg");
+type HomeSpaceCard = {
+  id: string;
+  title: string;
+  location: string;
+  type: string;
+  image: any;
+  venueId: string;
+  distanceKm?: number;
+};
+
+const categories = ["All", "Nearby", "Work", "Study", "Meetings", "Events"];
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -22,48 +39,219 @@ const HomeScreen = () => {
 
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
 
-  const categories = ["All", "Nearby", "Work", "Study", "Meetings", "Events"];
+  useEffect(() => {
+    const initialize = async () => {
+      await seedAppDataIfEmpty();
+      await loadCurrentLocation();
+    };
 
-  const featuredSpaces = [
-    {
-      id: "1",
-      title: "Diwan Studio",
-      location: "Manama",
-      type: "Work",
-      image: diwanImg,
-      nearby: true,
-    },
-    {
-      id: "2",
-      title: "Savoy Hotel Lounge",
-      location: "Juffair",
-      type: "Meetings",
-      image: savoyImg,
-      nearby: false,
-    },
-  ];
+    initialize().catch((error) => {
+      console.error("HomeScreen initialization error:", error);
+      setLocationLoading(false);
+    });
+  }, []);
 
-  const filteredSpaces = featuredSpaces.filter((space) => {
-    const matchesCategory =
-      selectedCategory === "All"
-        ? true
-        : selectedCategory === "Nearby"
-        ? space.nearby
-        : space.type === selectedCategory;
+  useEffect(() => {
+    const unsubscribeVenues = firestore()
+      .collection("venues")
+      .where("isActive", "==", true)
+      .onSnapshot(
+        (snapshot) => {
+          if (!snapshot?.docs) {
+            setVenues([]);
+            return;
+          }
 
+          const loadedVenues = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as Omit<Venue, "id">),
+          }));
+          setVenues(loadedVenues);
+        },
+        (error) => {
+          console.error("Venues snapshot error:", error);
+          setVenues([]);
+        }
+      );
+
+    const unsubscribeSpaces = firestore()
+      .collection("spaces")
+      .where("isActive", "==", true)
+      .onSnapshot(
+        (snapshot) => {
+          if (!snapshot?.docs) {
+            setSpaces([]);
+            return;
+          }
+
+          const loadedSpaces = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as Omit<Space, "id">),
+          }));
+          setSpaces(loadedSpaces);
+        },
+        (error) => {
+          console.error("Spaces snapshot error:", error);
+          setSpaces([]);
+        }
+      );
+
+    return () => {
+      unsubscribeVenues();
+      unsubscribeSpaces();
+    };
+  }, []);
+
+  const requestLocationPermission = async (): Promise<boolean> => {
+    if (Platform.OS === "ios") {
+      try {
+        Geolocation.requestAuthorization();
+        return true;
+      } catch (error) {
+        console.warn("iOS location authorization failed:", error);
+        return false;
+      }
+    }
+
+    if (Platform.OS === "android") {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "SpaceRoom location access",
+          message:
+            "Allow location access to find nearby spaces and show the best results.",
+          buttonPositive: "Allow",
+          buttonNegative: "Deny",
+        }
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+
+    return false;
+  };
+
+  const loadCurrentLocation = async () => {
+    const granted = await requestLocationPermission();
+    if (!granted) {
+      setLocationDenied(true);
+      setLocationLoading(false);
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      (position) => {
+        setCurrentLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationDenied(false);
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.error("Location error:", error);
+        setLocationDenied(true);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+      }
+    );
+  };
+
+  const venuesById = useMemo(
+    () => Object.fromEntries(venues.map((venue) => [venue.id, venue])),
+    [venues]
+  );
+
+  const featuredSpaces = useMemo((): HomeSpaceCard[] =>
+    spaces
+      .map<HomeSpaceCard | null>((space) => {
+        const venue = venuesById[space.venueId];
+        if (!venue) return null;
+
+        const type = space.type?.trim() || space.tags?.[0] || "Work";
+        const image = getImageSource(space.image);
+        const distanceKm =
+          currentLocation &&
+          typeof venue.latitude === "number" &&
+          typeof venue.longitude === "number"
+            ? getDistanceKm(
+                currentLocation.latitude,
+                currentLocation.longitude,
+                venue.latitude,
+                venue.longitude
+              )
+            : undefined;
+
+        return {
+          id: space.id,
+          title: space.title,
+          location: venue.location || "",
+          type,
+          image,
+          venueId: venue.id,
+          distanceKm,
+        };
+      })
+      .filter((item): item is HomeSpaceCard => item !== null),
+    [spaces, venuesById, currentLocation]
+  );
+
+  const filteredSpaces = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      query === "" ||
-      space.title.toLowerCase().includes(query) ||
-      space.location.toLowerCase().includes(query) ||
-      space.type.toLowerCase().includes(query);
+    const baseMatches = featuredSpaces.filter((space) => {
+      const matchesSearch =
+        query === "" ||
+        space.title.toLowerCase().includes(query) ||
+        space.location.toLowerCase().includes(query) ||
+        space.type.toLowerCase().includes(query);
 
-    return matchesCategory && matchesSearch;
-  });
+      if (!matchesSearch) return false;
+      if (selectedCategory === "All") return true;
+      if (selectedCategory === "Nearby") return true;
+      return space.type.toLowerCase() === selectedCategory.toLowerCase();
+    });
+
+    if (selectedCategory === "Nearby") {
+      return baseMatches
+        .filter((space) => typeof space.distanceKm === "number" && space.distanceKm <= 10)
+        .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+    }
+
+    return baseMatches;
+  }, [featuredSpaces, searchQuery, selectedCategory]);
+
+  const getEmptyStateMessage = () => {
+    if (searchQuery.trim() !== "") {
+      return `No spaces found for "${searchQuery}"`;
+    }
+
+    if (selectedCategory === "Nearby") {
+      if (locationLoading) {
+        return "Finding nearby spaces…";
+      }
+      if (locationDenied) {
+        return "Enable location access to show nearby spaces.";
+      }
+      return "No nearby spaces found.";
+    }
+
+    return "No spaces found.";
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}> 
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -77,6 +265,8 @@ const HomeScreen = () => {
             placeholderTextColor={COLORS.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+            returnKeyType="search"
           />
 
           <ScrollView
@@ -94,13 +284,17 @@ const HomeScreen = () => {
                   style={[
                     styles.categoryChip,
                     isActive && styles.activeCategoryChip,
-  
                   ]}
                   onPress={() => setSelectedCategory(item)}
                   activeOpacity={0.8}
                 >
                   {isNearby && (
-                    <Text style={[styles.nearbyIcon, isActive && styles.activeNearbyIcon]}>
+                    <Text
+                      style={[
+                        styles.nearbyIcon,
+                        isActive && styles.activeNearbyIcon,
+                      ]}
+                    >
                       📍
                     </Text>
                   )}
@@ -108,7 +302,6 @@ const HomeScreen = () => {
                     style={[
                       styles.categoryText,
                       isActive && styles.activeCategoryText,
-
                     ]}
                   >
                     {item}
@@ -128,15 +321,15 @@ const HomeScreen = () => {
                 location={space.location}
                 type={space.type}
                 image={space.image}
-                onPress={() => navigation.navigate("SpaceDetails")}
+                onPress={() =>
+                  navigation.navigate("SpaceDetails", {
+                    venueId: space.venueId,
+                  })
+                }
               />
             ))
           ) : (
-            <Text style={styles.emptyText}>
-              {searchQuery.trim() !== ""
-                ? `No spaces found for "${searchQuery}"`
-                : "No spaces found."}
-            </Text>
+            <Text style={styles.emptyText}>{getEmptyStateMessage()}</Text>
           )}
         </ScrollView>
       </View>
@@ -189,7 +382,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-
   categoryText: {
     color: COLORS.textSecondary,
     fontSize: 14,
@@ -199,12 +391,13 @@ const styles = StyleSheet.create({
     color: COLORS.black,
     fontWeight: "700",
   },
-
   nearbyIcon: {
     fontSize: 12,
     marginRight: 4,
   },
-
+  activeNearbyIcon: {
+    color: COLORS.black,
+  },
   sectionTitle: {
     color: COLORS.textPrimary,
     fontSize: 20,

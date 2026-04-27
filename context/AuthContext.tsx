@@ -174,7 +174,7 @@ export const AuthProvider = ({
   const getUserProfile = async () => {
     if (!user) return null;
     const doc = await firestore().collection("users").doc(user.uid).get();
-    return doc.exists ? doc.data() : null;
+    return doc.exists() ? doc.data() : null;
   };
 
   // ✏️ UPDATE USER PROFILE

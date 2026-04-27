@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   StyleSheet,
   Text,
@@ -7,23 +7,33 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { Booking } from "../types/booking";
+
+type RouteParams = {
+  booking?: Booking;
+};
 
 const BookingSuccessScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
-  const booking = {
-    venueName: "Diwan Hub, Adliya",
-    spaceName: "Board Room",
-    date: "14 Apr 2026",
-    time: "10:00 AM",
-    duration: "2 hours",
-    total: "BHD 28.60",
-    bookingId: "SR-48291",
+
+  const booking = (route.params as RouteParams)?.booking;
+
+  const displayBooking = booking ?? {
+    venueName: "Your Venue",
+    spaceName: "Your Space",
+    fullDate: "—",
+    startTime: "—",
+    endTime: "—",
+    duration: 0,
+    total: 0,
+    id: "—",
   };
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
       <View style={styles.container}>
         <View style={styles.iconWrapper}>
           <Text style={styles.checkIcon}>✓</Text>
@@ -37,37 +47,43 @@ const BookingSuccessScreen = () => {
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Venue</Text>
-            <Text style={styles.value}>{booking.venueName}</Text>
+            <Text style={styles.value}>{displayBooking.venueName}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Space</Text>
-            <Text style={styles.value}>{booking.spaceName}</Text>
+            <Text style={styles.value}>{displayBooking.spaceName}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Date</Text>
-            <Text style={styles.value}>{booking.date}</Text>
+            <Text style={styles.value}>{displayBooking.fullDate}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Time</Text>
-            <Text style={styles.value}>{booking.time}</Text>
+            <Text style={styles.value}>
+              {displayBooking.startTime} - {displayBooking.endTime}
+            </Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Duration</Text>
-            <Text style={styles.value}>{booking.duration}</Text>
+            <Text style={styles.value}>
+              {displayBooking.duration ? `${displayBooking.duration} ${displayBooking.duration === 1 ? "hour" : "hours"}` : "—"}
+            </Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Booking ID</Text>
-            <Text style={styles.value}>{booking.bookingId}</Text>
+            <Text style={styles.value}>
+              {typeof displayBooking.id === "string" && displayBooking.id !== "" ? `#BK-${displayBooking.id.slice(0, 8).toUpperCase()}` : "—"}
+            </Text>
           </View>
 
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total Paid</Text>
-            <Text style={styles.totalValue}>{booking.total}</Text>
+            <Text style={styles.totalValue}>BHD {displayBooking.total.toFixed(2)}</Text>
           </View>
         </View>
 

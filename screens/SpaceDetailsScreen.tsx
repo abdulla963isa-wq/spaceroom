@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,217 +9,136 @@ import {
   Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import firestore from "@react-native-firebase/firestore";
 import { useFavourites } from "../context/FavouritesContext";
 import type { FavouriteItem } from "../context/FavouritesContext";
+import type { Venue } from "../types/venue";
+import type { Space } from "../types/space";
+import { ALL_TIME_SLOTS, getImageSource, getUpcomingDateIds } from "../utils/helpers";
 
-type SpaceOption = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  tags: string[];
-  capacity: number;
-  price: string;
-  pricePerHour: number;
-  availability: string;
+type RouteParams = {
+  venueId: string;
+  venueData?: Venue;
 };
 
-const VENUE_ID = "diwan-hub";
-
-const ALL_TIME_SLOTS = [
-  "9:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "12:00 PM",
-  "1:00 PM",
-  "2:00 PM",
-  "3:00 PM",
-  "4:00 PM",
-  "5:00 PM",
-  "6:00 PM",
-];
 const TOTAL_SLOTS = ALL_TIME_SLOTS.length;
-
-// Returns today + tomorrow as "YYYY-MM-DD" in Bahrain time
-const getUpcomingDateIds = (): string[] => {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Bahrain",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(now);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
-  const [year, month, day] = [
-    Number(get("year")),
-    Number(get("month")),
-    Number(get("day")),
-  ];
-
-  return Array.from({ length: 2 }, (_, i) => {
-    const d = new Date(Date.UTC(year, month - 1, day + i));
-    return d.toISOString().split("T")[0];
-  });
-};
 
 const SpaceDetailsScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { toggleFavourite, isFavourite } = useFavourites();
 
-  // spaceName → true if fully booked across all available dates
-  const [unavailableSpaces, setUnavailableSpaces] = useState<
-    Record<string, boolean>
-  >({});
+  const { venueId, venueData } = route.params as RouteParams;
 
-  const venue = {
-    name: "Diwan Hub, Adliya",
-    location: "Block 338, Adliya",
-    description:
-      "Flexible spaces designed for productivity and collaboration. Located in the heart of Block 338, Adliya.",
-    heroImage:
-      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?q=80&w=1600&auto=format&fit=crop",
-    categories: [
-      "Private Room",
-      "Shared Desk",
-      "Event Space",
-      "Wi-Fi",
-      "Charging Port",
-      "Coffee",
-      "Quiet Area",
-    ],
-    options: [
-      {
-        id: "1",
-        title: "Meeting Room",
-        description:
-          "A bright meeting space designed for collaboration, calls, and creative work.",
-        image:
-          "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1200&auto=format&fit=crop",
-        tags: ["Private Room", "Screen", "Coffee"],
-        capacity: 6,
-        price: "BHD 5.5 / hour",
-        pricePerHour: 5.5,
-        availability: "Available Sunday–Thursday, 9AM–5PM",
-      },
-      {
-        id: "2",
-        title: "Board Room",
-        description:
-          "A professional space ideal for client meetings, presentations, and strategy sessions.",
-        image:
-          "https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=1200&auto=format&fit=crop",
-        tags: ["Meeting Table", "Board Screen", "Power Outlets"],
-        capacity: 8,
-        price: "BHD 14.3 / hour",
-        pricePerHour: 14.3,
-        availability: "Available Sunday–Thursday, 9AM–5PM",
-      },
-      {
-        id: "3",
-        title: "Event Space",
-        description:
-          "A versatile area for workshops, seminars, and private sessions — perfect for teams and events.",
-        image:
-          "https://images.unsplash.com/photo-1517502884422-41eaead166d4?q=80&w=1200&auto=format&fit=crop",
-        tags: ["Open Area", "Presentation Screen", "Wi-Fi", "Projector"],
-        capacity: 20,
-        price: "BHD 25 / hour",
-        pricePerHour: 25,
-        availability: "Available Sunday–Thursday, 9AM–5PM",
-      },
-      {
-        id: "4",
-        title: "Day Pass",
-        description:
-          "Access shared desks, lounge, and café with high-speed Wi-Fi and coffee all day long.",
-        image:
-          "https://images.unsplash.com/photo-1524758631624-e2822e304c36?q=80&w=1200&auto=format&fit=crop",
-        tags: ["Shared Desk", "Wi-Fi", "Air Conditioning", "Coffee"],
-        capacity: 1,
-        price: "BHD 5.5 / day",
-        pricePerHour: 5.5,
-        availability: "Access from 9AM–5PM Weekdays",
-      },
-      {
-        id: "5",
-        title: "Day Office",
-        description:
-          "Private, comfortable, and ideal for focused work or client calls with full access to Diwan amenities.",
-        image:
-          "https://images.unsplash.com/photo-1497366412874-3415097a27e7?q=80&w=1200&auto=format&fit=crop",
-        tags: ["Private Room", "Office Desk", "Power Outlets", "Coffee", "Quiet Area"],
-        capacity: 2,
-        price: "BHD 11 / day",
-        pricePerHour: 11,
-        availability: "Available Sunday–Thursday, 9AM–5PM",
-      },
-    ] as SpaceOption[],
-  };
+  const [venue, setVenue] = useState<Venue | null>(venueData ?? null);
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [unavailableSpaces, setUnavailableSpaces] = useState<Record<string, boolean>>({});
 
-  // ✅ Real-time Firestore listener — checks all spaces at once
   useEffect(() => {
+    if (!venueId) return;
+
+    const loadVenue = async () => {
+      if (venueData) return;
+      const doc = await firestore().collection("venues").doc(venueId).get();
+      if (doc.exists()) {
+        setVenue({ id: doc.id, ...(doc.data() as Omit<Venue, "id">) });
+      }
+    };
+
+    loadVenue();
+
+    const unsubscribeSpaces = firestore()
+      .collection("spaces")
+      .where("venueId", "==", venueId)
+      .where("isActive", "==", true)
+      .onSnapshot((snapshot) => {
+        const loadedSpaces = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Space, "id">),
+        }));
+        setSpaces(loadedSpaces);
+      });
+
+    return () => unsubscribeSpaces();
+  }, [venueId, venueData]);
+
+  useEffect(() => {
+    if (!venueId || spaces.length === 0) return;
+
     const upcomingDates = getUpcomingDateIds();
 
     const unsubscribe = firestore()
       .collection("bookings")
-      .where("venueId", "==", VENUE_ID)
+      .where("venueId", "==", venueId)
       .where("status", "==", "Confirmed")
       .onSnapshot((snapshot) => {
-        // { spaceName: { date: Set<time> } }
         const slotsBySpace: Record<string, Record<string, Set<string>>> = {};
 
         snapshot.docs.forEach((doc) => {
           const data = doc.data();
-          const { spaceName, date, time } = data;
-          if (!spaceName || !date || !time) return;
+          const { spaceId, date, reservedSlots } = data as {
+            spaceId?: string;
+            date?: string;
+            reservedSlots?: string[];
+          };
+
+          if (!spaceId || !date || !Array.isArray(reservedSlots)) return;
           if (!upcomingDates.includes(date)) return;
 
-          if (!slotsBySpace[spaceName]) slotsBySpace[spaceName] = {};
-          if (!slotsBySpace[spaceName][date])
-            slotsBySpace[spaceName][date] = new Set();
-          slotsBySpace[spaceName][date].add(time);
+          if (!slotsBySpace[spaceId]) slotsBySpace[spaceId] = {};
+          if (!slotsBySpace[spaceId][date]) slotsBySpace[spaceId][date] = new Set();
+          reservedSlots.forEach((slot) => {
+            if (slot) slotsBySpace[spaceId][date].add(slot);
+          });
         });
 
-        const result: Record<string, boolean> = {};
+        const nextUnavailable: Record<string, boolean> = {};
 
-        venue.options.forEach((option) => {
-          const byDate = slotsBySpace[option.title] || {};
-          // Unavailable only if ALL upcoming dates are fully booked
+        spaces.forEach((space) => {
+          const byDate = slotsBySpace[space.id] || {};
           const allFull = upcomingDates.every(
             (date) => (byDate[date]?.size ?? 0) >= TOTAL_SLOTS
           );
-          result[option.title] = allFull;
+          nextUnavailable[space.id] = allFull;
         });
 
-        setUnavailableSpaces(result);
+        setUnavailableSpaces(nextUnavailable);
       });
 
     return () => unsubscribe();
-  }, []);
+  }, [venueId, spaces]);
 
-  const toFavouriteItem = (option: SpaceOption): FavouriteItem => ({
-    id: option.id,
-    venueName: venue.name,
-    spaceName: option.title,
-    location: venue.location,
-    pricePerHour: option.pricePerHour,
+  const sortedSpaces = useMemo(() => {
+    return [...spaces].sort((a, b) => {
+      const aUnavailable = unavailableSpaces[a.id] === true;
+      const bUnavailable = unavailableSpaces[b.id] === true;
+      if (aUnavailable === bUnavailable) return 0;
+      return aUnavailable ? 1 : -1;
+    });
+  }, [spaces, unavailableSpaces]);
+
+  const toFavouriteItem = (space: Space): FavouriteItem => ({
+    id: space.id,
+    venueName: venue?.name ?? "",
+    spaceName: space.title,
+    location: venue?.location ?? "",
+    pricePerHour: space.pricePerHour,
   });
 
-  // ✅ Sort: available spaces first, unavailable spaces last
-  const sortedOptions = [...venue.options].sort((a, b) => {
-    const aUnavailable = unavailableSpaces[a.title] === true;
-    const bUnavailable = unavailableSpaces[b.title] === true;
-    if (aUnavailable === bUnavailable) return 0;
-    return aUnavailable ? 1 : -1;
-  });
+  if (!venue) {
+    return (
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading venue details…</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-      {/* Floating back button */}
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
       <TouchableOpacity
         onPress={() => navigation.goBack()}
         style={[styles.backButton, { top: insets.top + 14 }]}
@@ -230,7 +149,7 @@ const SpaceDetailsScreen = () => {
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <ImageBackground
-          source={{ uri: venue.heroImage }}
+          source={getImageSource(venue.heroImage)}
           style={styles.hero}
           imageStyle={styles.heroImage}
         >
@@ -254,14 +173,13 @@ const SpaceDetailsScreen = () => {
         </View>
 
         <View style={styles.optionsSection}>
-          {sortedOptions.map((option, index) => {
-            const fav = toFavouriteItem(option);
-            const favourited = isFavourite(fav.id);
-            const isUnavailable = unavailableSpaces[option.title] === true;
+          {sortedSpaces.map((space, index) => {
+            const favourited = isFavourite(space.id);
+            const isUnavailable = unavailableSpaces[space.id] === true;
 
             return (
               <View
-                key={option.id}
+                key={space.id}
                 style={[
                   styles.optionRow,
                   index % 2 !== 0 ? styles.optionRowAlt : null,
@@ -269,14 +187,13 @@ const SpaceDetailsScreen = () => {
               >
                 <View style={styles.imageWrapper}>
                   <Image
-                    source={{ uri: option.image }}
+                    source={getImageSource(space.image)}
                     style={[
                       styles.optionImage,
                       isUnavailable && styles.optionImageDimmed,
                     ]}
                   />
 
-                  {/* ✅ Unavailable badge overlaid on image */}
                   {isUnavailable && (
                     <View style={styles.unavailableOverlay}>
                       <View style={styles.unavailableBadge}>
@@ -287,10 +204,9 @@ const SpaceDetailsScreen = () => {
                     </View>
                   )}
 
-                  {/* Heart button */}
                   <TouchableOpacity
                     style={styles.favoriteButton}
-                    onPress={() => toggleFavourite(fav)}
+                    onPress={() => toggleFavourite(toFavouriteItem(space))}
                     activeOpacity={0.8}
                   >
                     <Text
@@ -305,9 +221,8 @@ const SpaceDetailsScreen = () => {
                 </View>
 
                 <View style={styles.optionContent}>
-                  {/* ✅ Title row with inline pill */}
                   <View style={styles.titleRow}>
-                    <Text style={styles.optionTitle}>{option.title}</Text>
+                    <Text style={styles.optionTitle}>{space.title}</Text>
                     {isUnavailable && (
                       <View style={styles.unavailablePill}>
                         <Text style={styles.unavailablePillText}>
@@ -317,30 +232,29 @@ const SpaceDetailsScreen = () => {
                     )}
                   </View>
 
-                  <Text style={styles.optionDescription}>
-                    {option.description}
-                  </Text>
+                  <Text style={styles.optionDescription}>{space.description}</Text>
 
                   <View style={styles.optionTagsContainer}>
-                    {option.tags.map((tag, tagIndex) => (
+                    {space.tags.map((tag, tagIndex) => (
                       <View key={tagIndex} style={styles.optionTag}>
                         <Text style={styles.optionTagText}>{tag}</Text>
                       </View>
                     ))}
                     <View style={styles.capacityTag}>
                       <Text style={styles.capacityTagText}>
-                        👥 Up to {option.capacity}{" "}
-                        {option.capacity === 1 ? "guest" : "guests"}
+                        👥 Up to {space.capacity}{" "}
+                        {space.capacity === 1 ? "guest" : "guests"}
                       </Text>
                     </View>
                   </View>
 
-                  <Text style={styles.optionPrice}>{option.price}</Text>
+                  <Text style={styles.optionPrice}>
+                    BHD {space.pricePerHour.toFixed(2)} / hour
+                  </Text>
                   <Text style={styles.optionAvailability}>
-                    {option.availability}
+                    {space.availabilityText}
                   </Text>
 
-                  {/* ✅ Book Now disabled + greyed when unavailable */}
                   <TouchableOpacity
                     style={[
                       styles.bookButton,
@@ -349,11 +263,12 @@ const SpaceDetailsScreen = () => {
                     disabled={isUnavailable}
                     onPress={() =>
                       navigation.navigate("Booking", {
-                        spaceId: option.id,
-                        spaceName: option.title,
+                        venueId,
                         venueName: venue.name,
                         location: venue.location,
-                        pricePerHour: option.pricePerHour,
+                        spaceId: space.id,
+                        spaceName: space.title,
+                        pricePerHour: space.pricePerHour,
                       })
                     }
                   >
@@ -386,6 +301,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0E1420",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#FFFFFF",
+    fontSize: 16,
   },
   backButton: {
     position: "absolute",
@@ -495,8 +419,6 @@ const styles = StyleSheet.create({
   optionImageDimmed: {
     opacity: 0.45,
   },
-
-  // ✅ Dark overlay + centred badge on the image
   unavailableOverlay: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 18,
@@ -518,46 +440,48 @@ const styles = StyleSheet.create({
     color: "#FF3B30",
     letterSpacing: 0.4,
   },
-
   favoriteButton: {
     position: "absolute",
-    top: 14,
-    right: 14,
+    right: 16,
+    top: 16,
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
   },
   favoriteIcon: {
-    fontSize: 22,
-    color: "#1F2937",
+    color: "#FFFFFF",
+    fontSize: 20,
   },
   favoriteIconActive: {
-    color: "#E53935",
+    color: "#FF375F",
   },
   optionContent: {
-    width: "100%",
+    paddingBottom: 4,
   },
-
-  // ✅ Title + pill inline
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 10,
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
   optionTitle: {
-    fontSize: 26,
-    fontWeight: "800",
     color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+    flex: 1,
+  },
+  optionDescription: {
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 20,
+    marginBottom: 12,
   },
   unavailablePill: {
-    backgroundColor: "rgba(255,59,48,0.15)",
+    backgroundColor: "#FF3B3018",
     borderWidth: 1,
-    borderColor: "#FF3B3060",
+    borderColor: "#FF3B3050",
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -568,77 +492,63 @@ const styles = StyleSheet.create({
     color: "#FF3B30",
     letterSpacing: 0.3,
   },
-
-  optionDescription: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#C7CED8",
-    marginBottom: 14,
-  },
   optionTagsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 12,
   },
   optionTag: {
-    borderWidth: 1,
-    borderColor: "#4B5563",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: "#1E293B",
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     marginRight: 8,
     marginBottom: 8,
-    backgroundColor: "#1C2431",
   },
   optionTagText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   capacityTag: {
-    backgroundColor: "rgba(25, 230, 193, 0.15)",
-    borderWidth: 1,
-    borderColor: "#19E6C1",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginRight: 8,
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     marginBottom: 8,
   },
   capacityTagText: {
-    color: "#19E6C1",
-    fontSize: 11,
-    fontWeight: "700",
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   optionPrice: {
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "800",
-    color: "#19E6C1",
+    fontWeight: "700",
     marginBottom: 6,
   },
   optionAvailability: {
-    fontSize: 13,
-    color: "#A6AFBB",
-    marginBottom: 14,
+    color: "#9CA3AF",
+    fontSize: 14,
+    marginBottom: 16,
   },
   bookButton: {
-    backgroundColor: "#19E6C1",
-    alignSelf: "flex-start",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: "#14CFFF",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
   },
   bookButtonDisabled: {
-    backgroundColor: "#1C2431",
-    borderWidth: 1,
-    borderColor: "#3A4454",
+    backgroundColor: "rgba(20,207,255,0.2)",
   },
   bookButtonText: {
-    color: "#061018",
-    fontSize: 14,
-    fontWeight: "800",
+    color: "#141414",
+    fontSize: 15,
+    fontWeight: "700",
   },
   bookButtonTextDisabled: {
-    color: "#6B7280",
+    color: "rgba(20,207,255,0.8)",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   Image,
   Modal,
@@ -13,31 +13,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import firestore from "@react-native-firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { COLORS } from "../constants/colors";
+import { ALL_TIME_SLOTS, calculateEndTime } from "../utils/helpers";
 
 const diwanImg = require("../assets/images/diwan.jpg");
 const savoyImg = require("../assets/images/savoy.jpg");
-
-const VENUE_IMAGES: Record<string, any> = {
-  "diwan-hub": diwanImg,
-  "savoy-lounge": savoyImg,
-};
 
 type Booking = {
   id: string;
   userId: string;
   venueId: string;
+  spaceId?: string;
   venueName: string;
   spaceName: string;
   date: string;
   fullDate: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   duration: number;
+  reservedSlots: string[];
   total: number;
   status: string;
   image: any;
 };
 
-// Get current Bahrain date + hour
 const getBahrainNow = () => {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Bahrain",
@@ -48,15 +46,13 @@ const getBahrainNow = () => {
     hour12: false,
   });
   const parts = formatter.formatToParts(new Date());
-  const get = (type: string) =>
-    parts.find((p) => p.type === type)?.value || "0";
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "0";
   return {
     date: `${get("year")}-${get("month")}-${get("day")}`,
     hour: Number(get("hour")),
   };
 };
 
-// Convert "10:00 AM" / "1:00 PM" → 24h integer
 const to24h = (time: string): number => {
   const [clock, mod] = time.split(" ");
   let [h] = clock.split(":").map(Number);
@@ -65,19 +61,17 @@ const to24h = (time: string): number => {
   return h;
 };
 
-// Has this booking's date+time already passed in Bahrain?
 const isPast = (date: string, time: string): boolean => {
   const bh = getBahrainNow();
   if (date < bh.date) return true;
   if (date > bh.date) return false;
-  return to24h(time) <= bh.hour; // same day, hour has passed
+  return to24h(time) <= bh.hour;
 };
 
-// Derive the display status purely from date/time — no Firestore write needed
-const deriveStatus = (firestoreStatus: string, date: string, time: string): string => {
+const deriveStatus = (firestoreStatus: string, date: string, endTime: string): string => {
   if (firestoreStatus === "Cancelled") return "Cancelled";
-  if (isPast(date, time)) return "Completed";
-  return "Confirmed";
+  if (!endTime) return firestoreStatus || "Confirmed";
+  return isPast(date, endTime) ? "Completed" : "Confirmed";
 };
 
 const MyBookingsScreen = () => {
@@ -104,23 +98,32 @@ const MyBookingsScreen = () => {
         (snapshot) => {
           const all: Booking[] = snapshot.docs.map((doc) => {
             const d = doc.data();
-
-            // Derive status locally — no Firestore update required
-            const status = deriveStatus(d.status, d.date, d.time);
+            const duration = typeof d.duration === "number" ? d.duration : Number(d.duration) || 1;
+            const startTime = d.startTime ?? d.time ?? "";
+            const endTime = d.endTime ?? (startTime ? calculateEndTime(startTime, duration, ALL_TIME_SLOTS) : "");
+            const reservedSlots = Array.isArray(d.reservedSlots)
+              ? d.reservedSlots
+              : d.time
+              ? [d.time]
+              : [];
+            const status = deriveStatus(d.status, d.date, endTime);
 
             return {
               id: doc.id,
               userId: d.userId,
               venueId: d.venueId,
+              spaceId: d.spaceId,
               venueName: d.venueName,
               spaceName: d.spaceName,
               date: d.date,
               fullDate: d.fullDate,
-              time: d.time,
-              duration: d.duration,
+              startTime,
+              endTime,
+              duration,
+              reservedSlots,
               total: d.total,
               status,
-              image: VENUE_IMAGES[d.venueId] ?? diwanImg,
+              image: d.venueId === "savoy-lounge" ? savoyImg : diwanImg,
             };
           });
 
@@ -136,16 +139,15 @@ const MyBookingsScreen = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // Filter tabs using the same isPast logic
   const bookings =
     activeTab === "Upcoming"
-      ? allBookings.filter((b) => !isPast(b.date, b.time) && b.status !== "Cancelled")
-      : allBookings.filter((b) => isPast(b.date, b.time) || b.status === "Cancelled");
+      ? allBookings.filter((b) => !isPast(b.date, b.endTime) && b.status !== "Cancelled")
+      : allBookings.filter((b) => isPast(b.date, b.endTime) || b.status === "Cancelled");
 
   const detailRows = (b: Booking) => [
     { label: "Booking ID", value: `#BK-${b.id.slice(0, 8).toUpperCase()}` },
     { label: "Date", value: b.fullDate },
-    { label: "Time", value: b.time },
+    { label: "Time", value: `${b.startTime} - ${b.endTime}` },
     {
       label: "Duration",
       value: `${b.duration} ${b.duration === 1 ? "hour" : "hours"}`,
@@ -155,14 +157,13 @@ const MyBookingsScreen = () => {
   ];
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
       <View style={styles.screen}>
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>My Bookings</Text>
             <Text style={styles.subtitle}>
@@ -170,7 +171,6 @@ const MyBookingsScreen = () => {
             </Text>
           </View>
 
-          {/* Tab Switch */}
           <View style={styles.switchWrapper}>
             {(["Upcoming", "Past"] as const).map((tab) => (
               <TouchableOpacity
@@ -194,7 +194,6 @@ const MyBookingsScreen = () => {
             ))}
           </View>
 
-          {/* Booking Cards */}
           <View style={styles.cardsWrapper}>
             {loading ? (
               <ActivityIndicator
@@ -239,15 +238,15 @@ const MyBookingsScreen = () => {
 
                     {[
                       ["Date", booking.fullDate],
-                      ["Time", booking.time],
+                      ["Time", `${booking.startTime} - ${booking.endTime}`],
                       [
                         "Duration",
                         `${booking.duration} ${booking.duration === 1 ? "hour" : "hours"}`,
                       ],
                     ].map(([label, value]) => (
-                      <View key={label} style={styles.infoRow}>
+                      <View key={label as string} style={styles.infoRow}>
                         <Text style={styles.infoLabel}>{label}</Text>
-                        <Text style={styles.infoValue}>{value}</Text>
+                        <Text style={styles.infoValue}>{value as string}</Text>
                       </View>
                     ))}
 
@@ -259,11 +258,13 @@ const MyBookingsScreen = () => {
                     </View>
 
                     <TouchableOpacity
-                      style={styles.viewButton}
-                      onPress={() => setSelectedBooking(booking)}
+                      style={styles.detailsButton}
                       activeOpacity={0.8}
+                      onPress={() => setSelectedBooking(booking)}
                     >
-                      <Text style={styles.viewButtonText}>View Details</Text>
+                      <Text style={styles.detailsButtonText}>
+                        View details
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -278,100 +279,56 @@ const MyBookingsScreen = () => {
             )}
           </View>
         </ScrollView>
-      </View>
 
-      {/* Booking Detail Modal */}
-      <Modal
-        visible={!!selectedBooking}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelectedBooking(null)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setSelectedBooking(null)}
-        />
-
-        {selectedBooking && (
-          <View
-            style={[
-              styles.bottomSheet,
-              { paddingBottom: insets.bottom + 20 },
-            ]}
-          >
-            <View style={styles.dragHandle} />
-
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Booking Details</Text>
+        <Modal
+          visible={!!selectedBooking}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setSelectedBooking(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
               <TouchableOpacity
+                style={styles.modalClose}
                 onPress={() => setSelectedBooking(null)}
-                style={styles.closeBtn}
               >
-                <Text style={styles.closeBtnText}>✕</Text>
+                <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
-            </View>
 
-            <View style={styles.sheetVenueCard}>
-              <Image
-                source={selectedBooking.image}
-                style={styles.sheetImage}
-              />
-              <View style={styles.sheetVenueInfo}>
-                <Text style={styles.sheetSpaceName}>
-                  {selectedBooking.spaceName}
-                </Text>
-                <Text style={styles.sheetVenueName}>
-                  {selectedBooking.venueName}
-                </Text>
-              </View>
-            </View>
+              {selectedBooking && (
+                <>
+                  <Image
+                    source={selectedBooking.image}
+                    style={styles.modalImage}
+                  />
+                  <Text style={styles.sheetTitle}>Booking Details</Text>
+                  <Text style={styles.sheetSpaceName}>
+                    {selectedBooking.spaceName}
+                  </Text>
+                  <Text style={styles.sheetVenueName}>
+                    {selectedBooking.venueName}
+                  </Text>
 
-            <View style={styles.detailContainer}>
-              {detailRows(selectedBooking).map((row, i, arr) => (
-                <View
-                  key={row.label}
-                  style={[
-                    styles.detailRow,
-                    i < arr.length - 1 && styles.detailRowBorder,
-                  ]}
-                >
-                  <Text style={styles.detailLabel}>{row.label}</Text>
-
-                  {row.isStatus ? (
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        selectedBooking.status === "Completed" &&
-                          styles.completedBadge,
-                      ]}
-                    >
+                  {detailRows(selectedBooking).map((row) => (
+                    <View key={row.label} style={styles.sheetRow}>
+                      <Text style={styles.sheetLabel}>{row.label}</Text>
                       <Text
                         style={[
-                          styles.statusText,
-                          selectedBooking.status === "Completed" &&
-                            styles.completedStatusText,
+                          styles.sheetValue,
+                          row.isStatus && styles.sheetStatusValue,
+                          row.isPrice && styles.sheetPriceValue,
                         ]}
                       >
                         {row.value}
                       </Text>
                     </View>
-                  ) : (
-                    <Text
-                      style={[
-                        styles.detailValue,
-                        row.isPrice && styles.priceValue,
-                      ]}
-                    >
-                      {row.value}
-                    </Text>
-                  )}
-                </View>
-              ))}
+                  ))}
+                </>
+              )}
             </View>
           </View>
-        )}
-      </Modal>
+        </Modal>
+      </View>
     </View>
   );
 };
@@ -391,256 +348,208 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 120,
   },
   header: {
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   title: {
+    fontSize: 28,
+    fontWeight: "800",
     color: COLORS.textPrimary,
-    fontSize: 30,
-    fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 20,
   },
   switchWrapper: {
     flexDirection: "row",
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 22,
-    padding: 6,
-    marginBottom: 20,
+    justifyContent: "space-around",
+    marginTop: 16,
+    marginBottom: 10,
   },
   switchButton: {
     flex: 1,
     paddingVertical: 12,
-    alignItems: "center",
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 5,
+    alignItems: "center",
   },
   activeSwitchButton: {
     backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   switchText: {
     color: COLORS.textSecondary,
-    fontSize: 14,
     fontWeight: "600",
   },
   activeSwitchText: {
     color: COLORS.black,
-    fontWeight: "700",
   },
   cardsWrapper: {
-    gap: 16,
+    paddingHorizontal: 20,
   },
   card: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 24,
+    marginBottom: 18,
     overflow: "hidden",
   },
   cardImage: {
     width: "100%",
-    height: 170,
+    height: 180,
   },
   cardContent: {
-    padding: 16,
+    padding: 18,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   titleWrapper: {
     flex: 1,
-    paddingRight: 10,
+    marginRight: 14,
   },
   spaceName: {
     color: COLORS.textPrimary,
     fontSize: 20,
     fontWeight: "700",
-    marginBottom: 6,
   },
   venueName: {
     color: COLORS.textSecondary,
     fontSize: 14,
+    marginTop: 4,
   },
   statusBadge: {
-    backgroundColor: "rgba(18, 207, 255, 0.16)",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: "rgba(20,207,255,0.12)",
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   completedBadge: {
-    backgroundColor: "transparent",
-    borderColor: COLORS.border,
+    backgroundColor: "rgba(16,185,129,0.18)",
   },
   statusText: {
     color: COLORS.primary,
-    fontSize: 12,
     fontWeight: "700",
   },
   completedStatusText: {
-    color: COLORS.textSecondary,
+    color: "#10B981",
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    marginTop: 10,
   },
   infoLabel: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
   infoValue: {
     color: COLORS.textPrimary,
-    fontSize: 14,
     fontWeight: "600",
+    fontSize: 13,
   },
   priceValue: {
     color: COLORS.primary,
-    fontSize: 14,
     fontWeight: "700",
   },
-  viewButton: {
+  detailsButton: {
+    marginTop: 16,
     backgroundColor: COLORS.primary,
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: 14,
   },
-  viewButtonText: {
+  detailsButtonText: {
     color: COLORS.black,
-    fontSize: 15,
     fontWeight: "700",
   },
   emptyState: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 24,
-    paddingVertical: 40,
     paddingHorizontal: 20,
+    paddingVertical: 48,
     alignItems: "center",
   },
   emptyTitle: {
     color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   emptySubtitle: {
     color: COLORS.textSecondary,
-    fontSize: 14,
     textAlign: "center",
-    lineHeight: 21,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-end",
   },
-  bottomSheet: {
+  modalContent: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
+    maxHeight: "85%",
   },
-  dragHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: COLORS.border,
-    borderRadius: 4,
-    alignSelf: "center",
-    marginBottom: 16,
+  modalClose: {
+    alignSelf: "flex-end",
   },
-  sheetHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+  modalCloseText: {
+    color: COLORS.textSecondary,
+    fontSize: 20,
+  },
+  modalImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: 18,
+    marginBottom: 18,
   },
   sheetTitle: {
+    fontSize: 22,
+    fontWeight: "800",
     color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  closeBtnText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  sheetVenueCard: {
-    backgroundColor: COLORS.background,
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  sheetImage: {
-    width: "100%",
-    height: 130,
-  },
-  sheetVenueInfo: {
-    padding: 12,
+    marginBottom: 4,
   },
   sheetSpaceName: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
-    marginBottom: 4,
+    color: COLORS.textPrimary,
   },
   sheetVenueName: {
     color: COLORS.textSecondary,
-    fontSize: 13,
-  },
-  detailContainer: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    overflow: "hidden",
     marginBottom: 16,
   },
-  detailRow: {
+  sheetRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    marginTop: 12,
   },
-  detailRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  detailLabel: {
+  sheetLabel: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
-  detailValue: {
+  sheetValue: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
+  },
+  sheetStatusValue: {
+    color: COLORS.primary,
+  },
+  sheetPriceValue: {
+    color: COLORS.primary,
+    fontWeight: "800",
   },
 });
