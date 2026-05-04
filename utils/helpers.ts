@@ -49,6 +49,14 @@ export const getImageSource = (image?: string) => {
   if (!image) return require("../assets/images/diwan.jpg");
   if (image === "diwan") return require("../assets/images/diwan.jpg");
   if (image === "savoy") return require("../assets/images/savoy.jpg");
+  if (image === "meeting_room_diwan") return require("../assets/images/Meeting_room_diwan.jpg");
+  if (image === "board_room_diwan") return require("../assets/images/board_room_diwan.png");
+  if (image === "event_space_diwan") return require("../assets/images/event_space_diwan.jpg");
+  if (image === "day_pass_diwan") return require("../assets/images/day_pass_diwan.jpeg");
+  if (image === "day_office_diwan") return require("../assets/images/day_office_diwan.png");
+  if (image === "aurora_savoy") return require("../assets/images/aurora_savoy.jpg");
+  if (image === "lumainia_savoy") return require("../assets/images/lumainia_savoy.jpg");
+  if (image === "reef_graden_pool_deck_savoy") return require("../assets/images/reef_graden_pool_deck_savoy.jpg");
   if (image.startsWith("http://") || image.startsWith("https://")) {
     return { uri: image };
   }

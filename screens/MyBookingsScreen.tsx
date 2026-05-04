@@ -123,7 +123,7 @@ const MyBookingsScreen = () => {
               reservedSlots,
               total: d.total,
               status,
-              image: d.venueId === "savoy-lounge" ? savoyImg : diwanImg,
+              image: d.venueId === "savoy-grande" ? savoyImg : diwanImg,
             };
           });
 

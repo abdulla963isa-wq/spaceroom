@@ -16,20 +16,8 @@ import Geolocation from "react-native-geolocation-service";
 import Header from "../components/Header";
 import SpaceCard from "../components/SpaceCard";
 import { COLORS } from "../constants/colors";
-import type { Space } from "../types/space";
 import type { Venue } from "../types/venue";
 import { getDistanceKm, getImageSource } from "../utils/helpers";
-import { seedAppDataIfEmpty } from "../services/firestoreSeed";
-
-type HomeSpaceCard = {
-  id: string;
-  title: string;
-  location: string;
-  type: string;
-  image: any;
-  venueId: string;
-  distanceKm?: number;
-};
 
 const categories = ["All", "Nearby", "Work", "Study", "Meetings", "Events"];
 
@@ -40,7 +28,6 @@ const HomeScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [spaces, setSpaces] = useState<Space[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -49,19 +36,11 @@ const HomeScreen = () => {
   const [locationLoading, setLocationLoading] = useState(true);
 
   useEffect(() => {
-    const initialize = async () => {
-      await seedAppDataIfEmpty();
-      await loadCurrentLocation();
-    };
-
-    initialize().catch((error) => {
-      console.error("HomeScreen initialization error:", error);
-      setLocationLoading(false);
-    });
+    loadCurrentLocation().catch(() => setLocationLoading(false));
   }, []);
 
   useEffect(() => {
-    const unsubscribeVenues = firestore()
+    const unsubscribe = firestore()
       .collection("venues")
       .where("isActive", "==", true)
       .onSnapshot(
@@ -70,12 +49,11 @@ const HomeScreen = () => {
             setVenues([]);
             return;
           }
-
-          const loadedVenues = snapshot.docs.map((doc) => ({
+          const loaded = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...(doc.data() as Omit<Venue, "id">),
           }));
-          setVenues(loadedVenues);
+          setVenues(loaded);
         },
         (error) => {
           console.error("Venues snapshot error:", error);
@@ -83,32 +61,7 @@ const HomeScreen = () => {
         }
       );
 
-    const unsubscribeSpaces = firestore()
-      .collection("spaces")
-      .where("isActive", "==", true)
-      .onSnapshot(
-        (snapshot) => {
-          if (!snapshot?.docs) {
-            setSpaces([]);
-            return;
-          }
-
-          const loadedSpaces = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<Space, "id">),
-          }));
-          setSpaces(loadedSpaces);
-        },
-        (error) => {
-          console.error("Spaces snapshot error:", error);
-          setSpaces([]);
-        }
-      );
-
-    return () => {
-      unsubscribeVenues();
-      unsubscribeSpaces();
-    };
+    return () => unsubscribe();
   }, []);
 
   const requestLocationPermission = async (): Promise<boolean> => {
@@ -116,12 +69,10 @@ const HomeScreen = () => {
       try {
         Geolocation.requestAuthorization();
         return true;
-      } catch (error) {
-        console.warn("iOS location authorization failed:", error);
+      } catch {
         return false;
       }
     }
-
     if (Platform.OS === "android") {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -135,7 +86,6 @@ const HomeScreen = () => {
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     }
-
     return false;
   };
 
@@ -146,7 +96,6 @@ const HomeScreen = () => {
       setLocationLoading(false);
       return;
     }
-
     Geolocation.getCurrentPosition(
       (position) => {
         setCurrentLocation({
@@ -156,33 +105,19 @@ const HomeScreen = () => {
         setLocationDenied(false);
         setLocationLoading(false);
       },
-      (error) => {
-        console.error("Location error:", error);
+      () => {
         setLocationDenied(true);
         setLocationLoading(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
-      }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   };
 
-  const venuesById = useMemo(
-    () => Object.fromEntries(venues.map((venue) => [venue.id, venue])),
-    [venues]
-  );
-
-  const featuredSpaces = useMemo((): HomeSpaceCard[] =>
-    spaces
-      .map<HomeSpaceCard | null>((space) => {
-        const venue = venuesById[space.venueId];
-        if (!venue) return null;
-
-        const type = space.type?.trim() || space.tags?.[0] || "Work";
-        const image = getImageSource(space.image);
-        const distanceKm =
+  const venuesWithDistance = useMemo(
+    () =>
+      venues.map((venue) => ({
+        ...venue,
+        distanceKm:
           currentLocation &&
           typeof venue.latitude === "number" &&
           typeof venue.longitude === "number"
@@ -192,66 +127,50 @@ const HomeScreen = () => {
                 venue.latitude,
                 venue.longitude
               )
-            : undefined;
-
-        return {
-          id: space.id,
-          title: space.title,
-          location: venue.location || "",
-          type,
-          image,
-          venueId: venue.id,
-          distanceKm,
-        };
-      })
-      .filter((item): item is HomeSpaceCard => item !== null),
-    [spaces, venuesById, currentLocation]
+            : undefined,
+      })),
+    [venues, currentLocation]
   );
 
-  const filteredSpaces = useMemo(() => {
+  const filteredVenues = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    const baseMatches = featuredSpaces.filter((space) => {
+
+    const baseMatches = venuesWithDistance.filter((venue) => {
       const matchesSearch =
         query === "" ||
-        space.title.toLowerCase().includes(query) ||
-        space.location.toLowerCase().includes(query) ||
-        space.type.toLowerCase().includes(query);
+        venue.name.toLowerCase().includes(query) ||
+        venue.location.toLowerCase().includes(query) ||
+        venue.description.toLowerCase().includes(query) ||
+        venue.categories.some((c) => c.toLowerCase().includes(query));
 
       if (!matchesSearch) return false;
-      if (selectedCategory === "All") return true;
-      if (selectedCategory === "Nearby") return true;
-      return space.type.toLowerCase() === selectedCategory.toLowerCase();
+      if (selectedCategory === "All" || selectedCategory === "Nearby") return true;
+      return venue.categories.some(
+        (c) => c.toLowerCase() === selectedCategory.toLowerCase()
+      );
     });
 
     if (selectedCategory === "Nearby") {
       return baseMatches
-        .filter((space) => typeof space.distanceKm === "number" && space.distanceKm <= 10)
+        .filter((v) => typeof v.distanceKm === "number" && v.distanceKm <= 10)
         .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
     }
 
     return baseMatches;
-  }, [featuredSpaces, searchQuery, selectedCategory]);
+  }, [venuesWithDistance, searchQuery, selectedCategory]);
 
   const getEmptyStateMessage = () => {
-    if (searchQuery.trim() !== "") {
-      return `No spaces found for "${searchQuery}"`;
-    }
-
+    if (searchQuery.trim() !== "") return `No spaces found for "${searchQuery}"`;
     if (selectedCategory === "Nearby") {
-      if (locationLoading) {
-        return "Finding nearby spaces…";
-      }
-      if (locationDenied) {
-        return "Enable location access to show nearby spaces.";
-      }
+      if (locationLoading) return "Finding nearby spaces…";
+      if (locationDenied) return "Enable location access to show nearby spaces.";
       return "No nearby spaces found.";
     }
-
     return "No spaces found.";
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -277,7 +196,6 @@ const HomeScreen = () => {
             {categories.map((item) => {
               const isActive = selectedCategory === item;
               const isNearby = item === "Nearby";
-
               return (
                 <TouchableOpacity
                   key={item}
@@ -313,18 +231,16 @@ const HomeScreen = () => {
 
           <Text style={styles.sectionTitle}>Featured spaces</Text>
 
-          {filteredSpaces.length > 0 ? (
-            filteredSpaces.map((space) => (
+          {filteredVenues.length > 0 ? (
+            filteredVenues.map((venue) => (
               <SpaceCard
-                key={space.id}
-                title={space.title}
-                location={space.location}
-                type={space.type}
-                image={space.image}
+                key={venue.id}
+                title={venue.name}
+                location={venue.location}
+                type={venue.categories[0] ?? "Work"}
+                image={getImageSource(venue.heroImage)}
                 onPress={() =>
-                  navigation.navigate("SpaceDetails", {
-                    venueId: space.venueId,
-                  })
+                  navigation.navigate("SpaceDetails", { venueId: venue.id })
                 }
               />
             ))
