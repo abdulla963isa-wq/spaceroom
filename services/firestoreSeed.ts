@@ -2,6 +2,8 @@ import firestore from "@react-native-firebase/firestore";
 import type { Space } from "../types/space";
 import type { Venue } from "../types/venue";
 
+
+
 const SEED_VENUES: Array<Venue> = [
   {
     id: "diwan-hub",
@@ -10,7 +12,7 @@ const SEED_VENUES: Array<Venue> = [
     description:
       "Flexible workspace with quiet meeting areas and small team rooms.",
     heroImage:
-      "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80",
+      "diwan",
     categories: ["Work", "Study", "Meetings"],
     ownerId: "system",
     latitude: 26.2294,
@@ -24,7 +26,7 @@ const SEED_VENUES: Array<Venue> = [
     description:
       "Premium lounge space for events, team meetings and relaxed work sessions.",
     heroImage:
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+      "savoy",
     categories: ["Events", "Meetings", "Work"],
     ownerId: "system",
     latitude: 26.236,
