@@ -45,6 +45,7 @@ const SEED_SPACES: Array<Space> = [
     pricePerHour: 5.5,
     availabilityText: "Available Sunday–Thursday, 9AM–6PM",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "diwan-board-room",
@@ -59,6 +60,7 @@ const SEED_SPACES: Array<Space> = [
     pricePerHour: 14.5,
     availabilityText: "Available Sunday–Thursday, 9AM–6PM",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "diwan-event-space",
@@ -73,6 +75,7 @@ const SEED_SPACES: Array<Space> = [
     pricePerHour: 25,
     availabilityText: "Available Sunday–Thursday, 9AM–6PM",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "diwan-day-pass",
@@ -87,6 +90,7 @@ const SEED_SPACES: Array<Space> = [
     pricePerHour: 3.5,
     availabilityText: "Access from 9AM–6PM (Weekdays)",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "diwan-day-office",
@@ -101,6 +105,7 @@ const SEED_SPACES: Array<Space> = [
     pricePerHour: 11,
     availabilityText: "Access from 9AM–6PM (Weekdays)",
     isActive: true,
+    quantity: 1,
   },
 
   // ── Savoy Grande Hotel ────────────────────────────────────────────────────
@@ -118,6 +123,7 @@ const SEED_SPACES: Array<Space> = [
     availabilityText:
       "Hourly: BHD 40 · Half Day: BHD 40 · Full Day: BHD 65. Availability subject to hotel scheduling.",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "savoy-lumina-hall",
@@ -133,6 +139,7 @@ const SEED_SPACES: Array<Space> = [
     availabilityText:
       "Half Day: BHD 42.00+ · Full Day: BHD 80+. Includes parking.",
     isActive: true,
+    quantity: 1,
   },
   {
     id: "savoy-reef-garden-pool-deck",
@@ -148,6 +155,7 @@ const SEED_SPACES: Array<Space> = [
     availabilityText:
       "Half Day: BHD 70+. Weather dependent, outdoor year-round.",
     isActive: true,
+    quantity: 1,
   },
 ];
 

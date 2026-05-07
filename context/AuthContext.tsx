@@ -74,6 +74,27 @@ export const AuthProvider = ({
         password
       );
 
+      // Backfill missing fields for users registered before the full profile was saved
+      const userRef = firestore().collection("users").doc(cred.user.uid);
+      const snap = await userRef.get();
+      if (!snap.exists()) {
+        await userRef.set({
+          fullName: cred.user.displayName || email.trim().split("@")[0],
+          email: cred.user.email || email.trim().toLowerCase(),
+          phoneNumber: "",
+          role: "customer",
+          isActive: true,
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        });
+      } else if (!snap.data()?.role) {
+        await userRef.update({
+          fullName: snap.data()?.fullName || cred.user.displayName || "",
+          email: snap.data()?.email || cred.user.email || "",
+          role: "customer",
+          isActive: true,
+        });
+      }
+
       setUser(cred.user);
       setIsGuest(false);
 
@@ -122,8 +143,12 @@ export const AuthProvider = ({
         .collection("users")
         .doc(userCredential.user.uid)
         .set({
+          fullName: name.trim(),
+          email: email.trim().toLowerCase(),
           phoneNumber: phone.trim(),
           dateOfBirth: dateOfBirth.trim(),
+          role: "customer",
+          isActive: true,
           createdAt: firestore.FieldValue.serverTimestamp(),
         });
 

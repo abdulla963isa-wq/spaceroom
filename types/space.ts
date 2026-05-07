@@ -10,4 +10,5 @@ export interface Space {
   pricePerHour: number;
   availabilityText: string;
   isActive: boolean;
+  quantity: number;
 }

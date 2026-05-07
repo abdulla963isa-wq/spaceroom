@@ -267,8 +267,6 @@ const SpaceDetailsScreen = () => {
                         venueName: venue.name,
                         location: venue.location,
                         spaceId: space.id,
-                        spaceName: space.title,
-                        pricePerHour: space.pricePerHour,
                       })
                     }
                   >
