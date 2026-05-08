@@ -2,7 +2,31 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "PowerShell(Get-ChildItem \"c:\\\\Projects\\\\spaceroom-admin\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)"
+      "PowerShell(Get-ChildItem \"c:\\\\Projects\\\\spaceroom-admin\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)",
+      "Bash(node -e \"require\\('firebase/storage'\\); console.log\\('ok'\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(node \"c:/Projects/spaceroom-admin/node_modules/typescript/bin/tsc\" --project \"c:/Projects/spaceroom-admin/tsconfig.json\" --noEmit)",
+      "Bash(ls c:/Projects/spaceroom-admin/ && echo \"---\" && ls c:/Projects/spaceroom/)",
+      "Read(//c/Projects/spaceroom-admin/**)",
+      "Bash(robocopy \"c:\\\\Projects\\\\spaceroom-admin\" \"c:\\\\Projects\\\\spaceroom\\\\admin\" /E /XD node_modules .git .next .turbo /XF \"*.log\" \"tsconfig.tsbuildinfo\")",
+      "Bash(robocopy \"c:\\\\Projects\\\\spaceroom-admin\" \"c:\\\\Projects\\\\spaceroom\\\\admin\" /E /XD \"node_modules\" \".git\" \".next\" \".turbo\" /XF \"tsconfig.tsbuildinfo\")",
+      "Bash(rsync -av --exclude='node_modules' --exclude='.git' --exclude='.next' --exclude='tsconfig.tsbuildinfo' --exclude='*.log' /c/Projects/spaceroom-admin/ /c/Projects/spaceroom/admin/)",
+      "Bash(cp -r /c/Projects/spaceroom-admin/src /c/Projects/spaceroom/admin/)",
+      "Bash(cp -r /c/Projects/spaceroom-admin/public /c/Projects/spaceroom/admin/)",
+      "Bash(cp /c/Projects/spaceroom-admin/package.json /c/Projects/spaceroom/admin/)",
+      "Bash(cp /c/Projects/spaceroom-admin/package-lock.json /c/Projects/spaceroom/admin/)",
+      "Bash(cp /c/Projects/spaceroom-admin/next.config.js /c/Projects/spaceroom/admin/)",
+      "Bash([ -f \"/c/Projects/spaceroom-admin/$f\" ])",
+      "Bash(cp /c/Projects/spaceroom-admin/__TRACKED_VAR__ /c/Projects/spaceroom/admin/)",
+      "Bash(node /c/Projects/spaceroom/admin/node_modules/typescript/bin/tsc --project /c/Projects/spaceroom/admin/tsconfig.json --noEmit)",
+      "Bash(mkdir -p /c/Projects/spaceroom/admin/public/images && cp /c/Projects/spaceroom/assets/images/* /c/Projects/spaceroom/admin/public/images/ && ls /c/Projects/spaceroom/admin/public/images/)",
+      "Bash(cd /c/Projects/spaceroom/admin && cat .env.local 2>/dev/null | grep STORAGE || cat .env.local 2>/dev/null | grep PROJECT)",
+      "Read(//c/c/Projects/spaceroom/admin/**)",
+      "Bash(npx firebase *)",
+      "PowerShell(firebase --version 2>&1)"
+    ],
+    "additionalDirectories": [
+      "C:\\Projects\\spaceroom\\assets\\images"
     ]
   }
 }
