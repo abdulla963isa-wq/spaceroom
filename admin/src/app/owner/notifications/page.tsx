@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,12 +20,21 @@ const typeConfig = {
 export default function OwnerNotificationsPage() {
   const { notifications, unreadCount, loading } = useNotifications();
   const { user } = useAuth();
+  const router = useRouter();
 
   const handleMarkRead = async (id: string) => {
     try {
       await markNotificationRead(id);
     } catch {
       toast.error('Failed to mark as read.');
+    }
+  };
+
+  const handleNotificationClick = async (notif: Notification) => {
+    if (!notif.isRead) await handleMarkRead(notif.id);
+    const bookingId = notif.metadata?.bookingId as string | undefined;
+    if (bookingId) {
+      router.push(`/owner/bookings?bookingId=${bookingId}`);
     }
   };
 
@@ -89,9 +99,10 @@ export default function OwnerNotificationsPage() {
                     'flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all hover:border-border/80',
                     notif.isRead
                       ? 'bg-surface border-border'
-                      : 'bg-primary-dim/20 border-primary/20'
+                      : 'bg-primary-dim/20 border-primary/20',
+                    notif.metadata?.bookingId ? 'hover:bg-primary-dim/30' : ''
                   )}
-                  onClick={() => !notif.isRead && handleMarkRead(notif.id)}
+                  onClick={() => handleNotificationClick(notif)}
                 >
                   <div className={cn(
                     'w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0',

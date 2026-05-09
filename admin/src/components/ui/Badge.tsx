@@ -27,6 +27,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
     label: 'Cancelled',
     className: 'text-danger bg-danger/10 border-danger/20',
   },
+  Blocked: {
+    label: 'Slot Blocked',
+    className: 'text-warning bg-warning/10 border-warning/20',
+  },
   Completed: {
     label: 'Completed',
     className: 'text-primary bg-primary-dim border-primary/20',

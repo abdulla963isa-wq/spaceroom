@@ -8,6 +8,7 @@ export interface User {
   role: 'admin' | 'owner' | 'customer';
   createdAt: Timestamp | string;
   isActive: boolean;
+  dateOfBirth?: string;
 }
 
 export interface Venue {
@@ -54,7 +55,8 @@ export interface Booking {
   reservedSlots: string[];
   pricePerHour: number;
   total: number;
-  status: 'Confirmed' | 'Cancelled';
+  status: 'Confirmed' | 'Cancelled' | 'Blocked';
+  isOwnerBlock?: boolean;
   createdAt: Timestamp | string;
 }
 

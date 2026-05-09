@@ -10,7 +10,7 @@ import Header from '@/components/layout/Header';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
-import ConfirmModal from '@/components/ui/ConfirmModal';
+import CancelBookingModal from '@/components/ui/CancelBookingModal';
 import Pagination from '@/components/ui/Pagination';
 import { Search, Download, CalendarCheck, Eye, XCircle, User as UserIcon, Mail, Phone } from 'lucide-react';
 import { formatCurrency, formatDate, truncateId } from '@/lib/utils';
@@ -49,6 +49,7 @@ export default function AdminBookingsPage() {
 
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
+      if (b.isOwnerBlock) return false;
       const matchSearch = !search ||
         b.spaceName?.toLowerCase().includes(search.toLowerCase()) ||
         b.venueName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,7 +70,7 @@ export default function AdminBookingsPage() {
   });
   const paginated = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleCancel = async () => {
+  const handleCancel = async (restoreSlot: boolean) => {
     if (!cancelBookingItem) return;
     setActionLoading(true);
     try {
@@ -77,9 +78,14 @@ export default function AdminBookingsPage() {
         cancelBookingItem.id,
         cancelBookingItem.userId,
         cancelBookingItem.spaceName,
-        cancelBookingItem.date
+        cancelBookingItem.date,
+        restoreSlot
       );
-      toast.success('Booking cancelled and user notified.');
+      toast.success(
+        restoreSlot
+          ? 'Booking cancelled — slot restored for rebooking.'
+          : 'Booking cancelled — slot blocked.'
+      );
       setCancelBookingItem(null);
     } catch {
       toast.error('Failed to cancel booking.');
@@ -300,16 +306,13 @@ export default function AdminBookingsPage() {
         )}
       </Modal>
 
-      {/* Cancel Confirm */}
-      <ConfirmModal
+      <CancelBookingModal
         isOpen={!!cancelBookingItem}
+        spaceName={cancelBookingItem?.spaceName}
+        date={cancelBookingItem?.date}
+        loading={actionLoading}
         onClose={() => setCancelBookingItem(null)}
         onConfirm={handleCancel}
-        title="Cancel Booking"
-        message={`Are you sure you want to cancel the booking for "${cancelBookingItem?.spaceName}" on ${cancelBookingItem?.date}? The user will be notified.`}
-        confirmLabel="Cancel Booking"
-        variant="danger"
-        loading={actionLoading}
       />
     </div>
   );

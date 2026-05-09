@@ -13,9 +13,10 @@ import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Pagination from '@/components/ui/Pagination';
 import SpaceForm from '@/components/forms/SpaceForm';
-import { Search, Plus, Edit, Trash2, Grid3X3 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Grid3X3, CalendarDays } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import SpaceCalendarModal from '@/components/ui/SpaceCalendarModal';
 
 const PAGE_SIZE = 10;
 
@@ -29,6 +30,7 @@ export default function OwnerSpacesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [editSpace, setEditSpace] = useState<Space | null>(null);
   const [deleteSpace, setDeleteSpace] = useState<Space | null>(null);
+  const [calendarSpace, setCalendarSpace] = useState<Space | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -46,10 +48,9 @@ export default function OwnerSpacesPage() {
       }
 
       const venueIds = venueList.map((v) => v.id);
-      const spacesQuery = query(collection(db, 'spaces'));
+      const spacesQuery = query(collection(db, 'spaces'), where('venueId', 'in', venueIds.slice(0, 10)));
       const unsubSpaces = onSnapshot(spacesQuery, (sSnapshot) => {
-        const allSpaces = sSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Space));
-        setSpaces(allSpaces.filter((s) => venueIds.includes(s.venueId)));
+        setSpaces(sSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Space)));
         setLoading(false);
       });
 
@@ -118,6 +119,13 @@ export default function OwnerSpacesPage() {
       key: 'id', label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCalendarSpace(row as unknown as Space)}
+            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-primary-dim transition-all"
+            title="View availability calendar"
+          >
+            <CalendarDays size={14} />
+          </button>
           <button onClick={() => setEditSpace(row as unknown as Space)} className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-primary-dim transition-all">
             <Edit size={14} />
           </button>
@@ -194,6 +202,11 @@ export default function OwnerSpacesPage() {
         confirmLabel="Delete"
         variant="danger"
         loading={actionLoading}
+      />
+      <SpaceCalendarModal
+        isOpen={!!calendarSpace}
+        space={calendarSpace}
+        onClose={() => setCalendarSpace(null)}
       />
     </div>
   );

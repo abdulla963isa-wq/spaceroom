@@ -42,11 +42,10 @@ export default function OwnerDashboard() {
 
       const venueIds = venueList.map((v) => v.id);
 
-      // Get spaces for owner's venues
-      const spacesQuery = query(collection(db, 'spaces'));
+      // Get spaces for owner's venues (scoped query avoids permission errors)
+      const spacesQuery = query(collection(db, 'spaces'), where('venueId', 'in', venueIds.slice(0, 10)));
       unsubs.push(onSnapshot(spacesQuery, (sSnapshot) => {
-        const allSpaces = sSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Space));
-        setSpaces(allSpaces.filter((s) => venueIds.includes(s.venueId)));
+        setSpaces(sSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Space)));
       }));
 
       // Get bookings for owner's venues (use first batch if > 10)
@@ -64,13 +63,14 @@ export default function OwnerDashboard() {
     return () => unsubs.forEach((u) => u());
   }, [user]);
 
-  const confirmedBookings = bookings.filter((b) => b.status === 'Confirmed');
-  const cancelledBookings = bookings.filter((b) => b.status === 'Cancelled');
+  const realBookings = bookings.filter((b) => !b.isOwnerBlock);
+  const confirmedBookings = realBookings.filter((b) => b.status === 'Confirmed');
+  const cancelledBookings = realBookings.filter((b) => b.status === 'Cancelled');
   const totalRevenue = confirmedBookings.reduce((s, b) => s + (b.total || 0), 0);
   const now = new Date();
   const upcomingBookings = confirmedBookings.filter((b) => new Date(b.date) >= now);
 
-  const recentBookings = [...bookings]
+  const recentBookings = [...realBookings]
     .sort((a, b) => {
       const at = a.createdAt instanceof Timestamp ? a.createdAt.toDate().getTime() : 0;
       const bt = b.createdAt instanceof Timestamp ? b.createdAt.toDate().getTime() : 0;
@@ -79,7 +79,7 @@ export default function OwnerDashboard() {
     .slice(0, 5);
 
   const bookingChartData = groupByDate(
-    bookings as Array<{ createdAt: Timestamp | string | Date }>, 30
+    realBookings as Array<{ createdAt: Timestamp | string | Date }>, 30
   );
   const revenueChartData = groupByMonth(
     confirmedBookings as Array<{ createdAt: Timestamp | string | Date; total?: number }>, 6

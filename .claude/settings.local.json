@@ -23,7 +23,11 @@
       "Bash(cd /c/Projects/spaceroom/admin && cat .env.local 2>/dev/null | grep STORAGE || cat .env.local 2>/dev/null | grep PROJECT)",
       "Read(//c/c/Projects/spaceroom/admin/**)",
       "Bash(npx firebase *)",
-      "PowerShell(firebase --version 2>&1)"
+      "PowerShell(firebase --version 2>&1)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('DEPS:', list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('VERSION:', d.get\\('version',''\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('dependencies',{}\\), indent=2\\)\\)\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\spaceroom\" -Directory)",
+      "Bash(Select-Object Name)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\spaceroom\\assets\\images"

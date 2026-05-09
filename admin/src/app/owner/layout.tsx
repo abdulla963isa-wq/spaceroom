@@ -3,12 +3,15 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useNewBookingAlert } from '@/hooks/useNewBookingAlert';
 import OwnerSidebar from '@/components/layout/OwnerSidebar';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const { role, loading } = useAuth();
+  const { role, loading, user } = useAuth();
   const router = useRouter();
+
+  useNewBookingAlert(user?.uid ?? null);
 
   useEffect(() => {
     if (!loading && role !== 'owner') {

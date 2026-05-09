@@ -42,10 +42,11 @@ export default function AdminDashboard() {
     return () => unsubs.forEach((u) => u());
   }, []);
 
-  const confirmedBookings = bookings.filter((b) => b.status === 'Confirmed');
+  const realBookings = bookings.filter((b) => !b.isOwnerBlock);
+  const confirmedBookings = realBookings.filter((b) => b.status === 'Confirmed');
   const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (b.total || 0), 0);
   const activeListings = spaces.filter((s) => s.isActive).length;
-  const recentBookings = [...bookings]
+  const recentBookings = [...realBookings]
     .sort((a, b) => {
       const aTime = typeof a.createdAt === 'object' && 'toDate' in a.createdAt ? a.createdAt.toDate().getTime() : 0;
       const bTime = typeof b.createdAt === 'object' && 'toDate' in b.createdAt ? b.createdAt.toDate().getTime() : 0;
@@ -55,7 +56,7 @@ export default function AdminDashboard() {
 
   // Top spaces by bookings
   const spaceBookingMap: Record<string, { name: string; count: number }> = {};
-  bookings.forEach((b) => {
+  realBookings.forEach((b) => {
     if (!spaceBookingMap[b.spaceId]) {
       const displayName = b.venueName ? `${b.venueName} — ${b.spaceName}` : b.spaceName;
       spaceBookingMap[b.spaceId] = { name: displayName, count: 0 };

@@ -14,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { COLORS } from "../../constants/colors";
+import DatePickerModal from "../../components/DatePickerModal";
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
@@ -27,6 +28,7 @@ const RegisterScreen = () => {
   const [password, setPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,11 +58,9 @@ const RegisterScreen = () => {
       newErrors.phone = "Phone number must be exactly 8 digits";
     }
 
-    // Date of Birth → DD-MM-YYYY format
+    // Date of Birth
     if (!dateOfBirth.trim()) {
       newErrors.dateOfBirth = "Date of birth is required";
-    } else if (!/^\d{2}-\d{2}-\d{4}$/.test(dateOfBirth)) {
-      newErrors.dateOfBirth = "Date must be in DD-MM-YYYY format";
     }
 
     // Password → 8+ strong password
@@ -126,6 +126,9 @@ if (!password) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>Join Spaceroom today</Text>
 
@@ -181,19 +184,30 @@ if (!password) {
           {/* DATE OF BIRTH */}
           <View style={styles.fieldWrapper}>
             <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={[styles.input, !!errors.dateOfBirth && styles.inputError]}
-              placeholder="DD-MM-YYYY"
-              placeholderTextColor={COLORS.textMuted}
-              value={dateOfBirth}
-              onChangeText={(v) => handleChange("dateOfBirth", setDateOfBirth, v)}
-              keyboardType="numeric"
-              maxLength={10}
-            />
+            <TouchableOpacity
+              style={[styles.input, styles.dateButton, !!errors.dateOfBirth && styles.inputError]}
+              onPress={() => setShowDobPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={dateOfBirth ? styles.dateText : styles.datePlaceholder}>
+                {dateOfBirth || "Select your date of birth"}
+              </Text>
+            </TouchableOpacity>
             {!!errors.dateOfBirth && (
               <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
             )}
           </View>
+
+          <DatePickerModal
+            visible={showDobPicker}
+            value={dateOfBirth}
+            onConfirm={(date) => {
+              setDateOfBirth(date);
+              setShowDobPicker(false);
+              if (errors.dateOfBirth) setErrors((p) => ({ ...p, dateOfBirth: "" }));
+            }}
+            onClose={() => setShowDobPicker(false)}
+          />
 
           {/* PASSWORD */}
           <View style={styles.fieldWrapper}>
@@ -263,6 +277,8 @@ export default RegisterScreen;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
+  backButton: { alignSelf: 'flex-start', padding: 8, marginBottom: 8 },
+  backArrow: { fontSize: 24, color: COLORS.textPrimary },
   scrollContent: {
     paddingHorizontal: 28,
     paddingTop: 80,
@@ -312,6 +328,9 @@ const styles = StyleSheet.create({
     height: 50,
     color: COLORS.textPrimary,
   },
+  dateButton: { justifyContent: "center" },
+  dateText: { color: COLORS.textPrimary, fontSize: 15 },
+  datePlaceholder: { color: COLORS.textMuted, fontSize: 15 },
 
   inputError: {
     borderColor: COLORS.danger,

@@ -166,8 +166,9 @@ export default function OwnerAnalyticsPage() {
                 </Pie>
                 <Tooltip
                   formatter={(v) => formatCurrency(v as number)}
-                  contentStyle={{ background: '#1E1E1E', border: '1px solid #2A2A2A', borderRadius: '12px' }}
+                  contentStyle={{ background: '#1E1E1E', border: '1px solid #2A2A2A', borderRadius: '12px', color: '#F5F5F5' }}
                   labelStyle={{ color: '#BDBDBD' }}
+                  itemStyle={{ color: '#F5F5F5' }}
                 />
               </PieChart>
             </ResponsiveContainer>

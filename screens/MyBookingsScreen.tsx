@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -83,6 +82,17 @@ const MyBookingsScreen = () => {
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
+  // Custom cancel-confirm modal (replaces Alert.alert)
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // External cancellation notice (admin/owner cancelled on behalf of user)
+  const [externalCancel, setExternalCancel] = useState<Booking | null>(null);
+
+  // Track statuses to detect external cancellations
+  const prevStatusRef = useRef<Record<string, string>>({});
+  const userInitiatedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -97,6 +107,7 @@ const MyBookingsScreen = () => {
       .orderBy("date", "desc")
       .onSnapshot(
         (snapshot) => {
+          if (!snapshot) return;
           const all: Booking[] = snapshot.docs.map((doc) => {
             const d = doc.data();
             const duration = typeof d.duration === "number" ? d.duration : Number(d.duration) || 1;
@@ -129,6 +140,26 @@ const MyBookingsScreen = () => {
             };
           });
 
+          // Detect external cancellations (admin/owner cancelled the booking)
+          if (Object.keys(prevStatusRef.current).length > 0) {
+            for (const b of all) {
+              const prev = prevStatusRef.current[b.id];
+              if (
+                prev === "Confirmed" &&
+                b.status === "Cancelled" &&
+                !userInitiatedRef.current.has(b.id)
+              ) {
+                setExternalCancel(b);
+                break; // show one at a time
+              }
+            }
+          }
+
+          // Save current statuses for next comparison
+          const newStatuses: Record<string, string> = {};
+          all.forEach((b) => { newStatuses[b.id] = b.status; });
+          prevStatusRef.current = newStatuses;
+
           setAllBookings(all);
           setLoading(false);
         },
@@ -147,28 +178,23 @@ const MyBookingsScreen = () => {
       : allBookings.filter((b) => isPast(b.date, b.endTime) || b.status === "Cancelled");
 
   const handleCancelBooking = (bookingId: string) => {
-    Alert.alert(
-      "Cancel Booking",
-      "Are you sure you want to cancel this booking? This action cannot be undone.",
-      [
-        { text: "No, Don't Cancel", style: "cancel" },
-        {
-          text: "Cancel Booking",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await firestore()
-                .collection("bookings")
-                .doc(bookingId)
-                .update({ status: "Cancelled" });
-              setSelectedBooking(null);
-            } catch {
-              Alert.alert("Error", "Failed to cancel booking. Please try again.");
-            }
-          },
-        },
-      ]
-    );
+    setCancelTarget(bookingId);
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelLoading(true);
+    userInitiatedRef.current.add(cancelTarget);
+    try {
+      await firestore().collection("bookings").doc(cancelTarget).update({ status: "Cancelled" });
+      setSelectedBooking(null);
+      setCancelTarget(null);
+    } catch {
+      userInitiatedRef.current.delete(cancelTarget);
+      // show error inline — no Alert needed
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const detailRows = (b: Booking) => [
@@ -344,6 +370,76 @@ const MyBookingsScreen = () => {
             </View>
           </View>
         </Modal>
+
+        {/* ── Cancel-confirm modal (user-initiated) ── */}
+        <Modal
+          visible={!!cancelTarget}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCancelTarget(null)}
+        >
+          <View style={styles.alertOverlay}>
+            <View style={styles.alertBox}>
+              <View style={styles.alertIconWrap}>
+                <Text style={styles.alertIcon}>⚠</Text>
+              </View>
+              <Text style={styles.alertTitle}>Cancel Booking?</Text>
+              <Text style={styles.alertMessage}>
+                Are you sure you want to cancel this booking? This action cannot be undone.
+              </Text>
+              <View style={styles.alertButtons}>
+                <TouchableOpacity
+                  style={styles.alertKeepBtn}
+                  onPress={() => setCancelTarget(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.alertKeepText}>Keep it</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.alertCancelBtn, cancelLoading && { opacity: 0.6 }]}
+                  onPress={confirmCancel}
+                  disabled={cancelLoading}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.alertCancelText}>
+                    {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── External cancellation notice (admin/owner cancelled) ── */}
+        <Modal
+          visible={!!externalCancel}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setExternalCancel(null)}
+        >
+          <View style={styles.alertOverlay}>
+            <View style={styles.alertBox}>
+              <View style={[styles.alertIconWrap, styles.sorryIconWrap]}>
+                <Text style={styles.alertIcon}>🙏</Text>
+              </View>
+              <Text style={styles.alertTitle}>Booking Cancelled</Text>
+              <Text style={styles.alertMessage}>
+                We&apos;re sorry, your booking for{" "}
+                <Text style={styles.alertHighlight}>{externalCancel?.spaceName}</Text> on{" "}
+                <Text style={styles.alertHighlight}>{externalCancel?.fullDate}</Text> has been
+                cancelled.{"\n\n"}You can book any other available time slot — we&apos;d love to
+                have you back!
+              </Text>
+              <TouchableOpacity
+                style={styles.alertDismissBtn}
+                onPress={() => setExternalCancel(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.alertDismissText}>Got it</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -492,4 +588,81 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCancelButtonText: { color: COLORS.danger, fontWeight: "700", fontSize: 15 },
+
+  // ── Custom alert / notice modals ──────────────────────────────────────────
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  alertBox: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  alertIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,77,77,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sorryIconWrap: {
+    backgroundColor: "rgba(20,207,255,0.10)",
+  },
+  alertIcon: { fontSize: 26 },
+  alertTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  alertMessage: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  alertHighlight: { color: COLORS.primary, fontWeight: "700" },
+
+  alertButtons: { flexDirection: "row", gap: 12, width: "100%" },
+  alertKeepBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertKeepText: { color: COLORS.textSecondary, fontWeight: "600", fontSize: 14 },
+  alertCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.danger,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertCancelText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  alertDismissBtn: {
+    width: "100%",
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertDismissText: { color: COLORS.black, fontWeight: "700", fontSize: 15 },
 });

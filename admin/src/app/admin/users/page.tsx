@@ -53,13 +53,25 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const [editForm, setEditForm] = useState({
-    fullName: '', email: '', phoneNumber: '',
+    fullName: '', email: '', phoneNumber: '', dateOfBirth: '',
     role: 'customer' as User['role'], isActive: true, venueId: '',
   });
   const [addForm, setAddForm] = useState({
-    fullName: '', email: '', password: '', phoneNumber: '',
+    fullName: '', email: '', password: '', phoneNumber: '', dateOfBirth: '',
     role: 'customer' as User['role'], venueId: '',
   });
+
+  // Convert between DD-MM-YYYY (Firestore) ↔ YYYY-MM-DD (HTML date input)
+  const toHtmlDate = (dob: string) => {
+    if (!dob || !/^\d{2}-\d{2}-\d{4}$/.test(dob)) return '';
+    const [d, m, y] = dob.split('-');
+    return `${y}-${m}-${d}`;
+  };
+  const fromHtmlDate = (html: string) => {
+    if (!html) return '';
+    const [y, m, d] = html.split('-');
+    return `${d}-${m}-${y}`;
+  };
 
   useEffect(() => {
     getDocs(collection(db, 'venues')).then((snap) => {
@@ -88,6 +100,7 @@ export default function AdminUsersPage() {
       fullName: user.fullName,
       email: user.email,
       phoneNumber: user.phoneNumber,
+      dateOfBirth: user.dateOfBirth || '',
       role: user.role,
       isActive: user.isActive,
       venueId: ownedVenue?.id || '',
@@ -314,6 +327,16 @@ export default function AdminUsersPage() {
             <input type="tel" value={editForm.phoneNumber} onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })} className={inputCls} />
           </div>
           <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Date of Birth</label>
+            <input
+              type="date"
+              value={toHtmlDate(editForm.dateOfBirth)}
+              onChange={(e) => setEditForm({ ...editForm, dateOfBirth: fromHtmlDate(e.target.value) })}
+              className={inputCls}
+              max={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Role</label>
             <select
               value={editForm.role}
@@ -367,6 +390,16 @@ export default function AdminUsersPage() {
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Phone Number</label>
             <input type="tel" value={addForm.phoneNumber} onChange={(e) => setAddForm({ ...addForm, phoneNumber: e.target.value })} placeholder="+973 XXXX XXXX" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Date of Birth</label>
+            <input
+              type="date"
+              value={toHtmlDate(addForm.dateOfBirth)}
+              onChange={(e) => setAddForm({ ...addForm, dateOfBirth: fromHtmlDate(e.target.value) })}
+              className={inputCls}
+              max={new Date().toISOString().split('T')[0]}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1.5">Role *</label>

@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import DatePickerModal from "../components/DatePickerModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import auth from "@react-native-firebase/auth";
@@ -25,6 +26,7 @@ const PersonalDetailsScreen = () => {
   const [email] = useState(user?.email || "");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -130,13 +132,20 @@ const PersonalDetailsScreen = () => {
             />
 
             <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={styles.input}
+            <TouchableOpacity
+              style={[styles.input, styles.dateButton]}
+              onPress={() => setShowDobPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={dateOfBirth ? styles.dateText : styles.datePlaceholder}>
+                {dateOfBirth || "Select your date of birth"}
+              </Text>
+            </TouchableOpacity>
+            <DatePickerModal
+              visible={showDobPicker}
               value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              placeholder="DD-MM-YYYY"
-              placeholderTextColor={COLORS.textSecondary}
-              keyboardType="numeric"
+              onConfirm={(date) => { setDateOfBirth(date); setShowDobPicker(false); }}
+              onClose={() => setShowDobPicker(false)}
             />
 
             <Text style={styles.label}>Phone Number</Text>
@@ -228,6 +237,9 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: 20,
   },
+  dateButton: { justifyContent: "center" },
+  dateText: { fontSize: 16, color: COLORS.textPrimary },
+  datePlaceholder: { fontSize: 16, color: COLORS.textSecondary },
   readOnlyInput: {
     backgroundColor: "#0A0A0A",
     borderColor: "#1A1A1A",

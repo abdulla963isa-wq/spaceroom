@@ -54,6 +54,7 @@ const SpaceDetailsScreen = () => {
       .where("venueId", "==", venueId)
       .where("isActive", "==", true)
       .onSnapshot((snapshot) => {
+        if (!snapshot) return;
         const loadedSpaces = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...(doc.data() as Omit<Space, "id">),
@@ -74,6 +75,7 @@ const SpaceDetailsScreen = () => {
       .where("venueId", "==", venueId)
       .where("status", "==", "Confirmed")
       .onSnapshot((snapshot) => {
+        if (!snapshot) return;
         const slotsBySpace: Record<string, Record<string, Set<string>>> = {};
 
         snapshot.docs.forEach((doc) => {

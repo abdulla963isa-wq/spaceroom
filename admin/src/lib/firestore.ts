@@ -205,17 +205,81 @@ export async function migrateVenueNames(): Promise<number> {
   return updates.length;
 }
 
-// Cancel a booking and notify the user
-export async function cancelBooking(bookingId: string, userId: string, spaceName: string, date: string) {
-  const bookingRef = doc(db, 'bookings', bookingId);
-  await firestoreUpdateDoc(bookingRef, { status: 'Cancelled' });
+// Set owner-blocked slots for a specific space instance on a date.
+// Stored as a booking with status 'Blocked' + isOwnerBlock flag so the
+// mobile app treats them as unavailable automatically.
+export async function setOwnerBlockedSlots(
+  instanceId: string,
+  venueId: string,
+  spaceName: string,
+  date: string,
+  slots: string[]
+) {
+  const docId = `ownerblock_${instanceId}_${date}`;
+  const docRef = doc(db, 'bookings', docId);
+  if (slots.length === 0) {
+    await firestoreDeleteDoc(docRef);
+    return;
+  }
+  await setDoc(docRef, {
+    spaceId: instanceId,
+    venueId,
+    spaceName,
+    date,
+    reservedSlots: slots,
+    status: 'Blocked',
+    isOwnerBlock: true,
+    userId: '_owner_block',
+    total: 0,
+    duration: slots.length,
+    createdAt: serverTimestamp(),
+  });
+}
 
-  // Create notification for the user
+// Create a notification with a fixed document ID — idempotent, won't overwrite an existing one
+export async function createNotificationById(
+  notifId: string,
+  receiverId: string,
+  receiverRole: Notification['receiverRole'],
+  title: string,
+  message: string,
+  type: Notification['type'],
+  metadata?: Record<string, unknown>
+) {
+  const docRef = doc(db, 'notifications', notifId);
+  const existing = await getDoc(docRef);
+  if (existing.exists()) return;
+
+  await setDoc(docRef, {
+    receiverId,
+    receiverRole,
+    title,
+    message,
+    type,
+    isRead: false,
+    createdAt: serverTimestamp(),
+    ...(metadata && { metadata }),
+  });
+}
+
+// Cancel a booking and notify the user.
+// restoreSlot=true  → status 'Cancelled' (slot freed for rebooking)
+// restoreSlot=false → status 'Blocked'   (slot stays unavailable)
+export async function cancelBooking(
+  bookingId: string,
+  userId: string,
+  spaceName: string,
+  date: string,
+  restoreSlot = true
+) {
+  const bookingRef = doc(db, 'bookings', bookingId);
+  await firestoreUpdateDoc(bookingRef, { status: restoreSlot ? 'Cancelled' : 'Blocked' });
+
   await createNotification(
     userId,
     'customer',
     'Booking Cancelled',
-    `Your booking for ${spaceName} on ${date} has been cancelled by the administrator.`,
+    `Your booking for ${spaceName} on ${date} has been cancelled. You can book any other available time slot.`,
     'booking',
     { bookingId }
   );

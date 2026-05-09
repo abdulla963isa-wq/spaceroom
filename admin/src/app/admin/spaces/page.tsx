@@ -13,9 +13,10 @@ import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Pagination from '@/components/ui/Pagination';
 import SpaceForm from '@/components/forms/SpaceForm';
-import { Search, Plus, Edit, Trash2, Grid3X3 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Grid3X3, CalendarDays } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import SpaceCalendarModal from '@/components/ui/SpaceCalendarModal';
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +29,7 @@ export default function AdminSpacesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [editSpace, setEditSpace] = useState<Space | null>(null);
   const [deleteSpace, setDeleteSpace] = useState<Space | null>(null);
+  const [calendarSpace, setCalendarSpace] = useState<Space | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [allVenues, setAllVenues] = useState<Venue[]>([]);
@@ -112,6 +114,13 @@ export default function AdminSpacesPage() {
       key: 'id', label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCalendarSpace(row as unknown as Space)}
+            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-primary-dim transition-all"
+            title="View availability calendar"
+          >
+            <CalendarDays size={14} />
+          </button>
           <button
             onClick={() => setEditSpace(row as unknown as Space)}
             className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-primary-dim transition-all"
@@ -216,6 +225,11 @@ export default function AdminSpacesPage() {
         confirmLabel="Delete"
         variant="danger"
         loading={actionLoading}
+      />
+      <SpaceCalendarModal
+        isOpen={!!calendarSpace}
+        space={calendarSpace}
+        onClose={() => setCalendarSpace(null)}
       />
     </div>
   );

@@ -175,7 +175,7 @@ const BookingScreen = () => {
     const unsub = firestore()
       .collection("bookings")
       .where("venueId", "==", venueId)
-      .where("status", "==", "Confirmed")
+      .where("status", "in", ["Confirmed", "Blocked"])
       .onSnapshot((snapshot) => {
         if (!snapshot) return;
         const bySpaceDate: Record<string, Record<string, Set<string>>> = {};
@@ -273,7 +273,7 @@ const BookingScreen = () => {
           .where("venueId", "==", venueId)
           .where("spaceId", "==", selectedSlot.spaceId)
           .where("date", "==", selectedDateId)
-          .where("status", "==", "Confirmed")
+          .where("status", "in", ["Confirmed", "Blocked"])
           .get();
 
         const existingSlots: string[] = [];

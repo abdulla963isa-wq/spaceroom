@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, QueryConstraint } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '@/lib/firebase';
 
 interface UseCollectionResult<T> {
   data: T[];
@@ -21,31 +22,49 @@ export function useCollection<T extends { id: string }>(
   useEffect(() => {
     if (!collectionName) return;
 
-    setLoading(true);
-    setError(null);
+    let unsubFirestore: (() => void) | null = null;
 
-    const q = constraints.length > 0
-      ? query(collection(db, collectionName), ...constraints)
-      : collection(db, collectionName);
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const docs = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as T[];
-        setData(docs);
-        setLoading(false);
-      },
-      (err) => {
-        console.error(`Error fetching ${collectionName}:`, err);
-        setError(err.message);
-        setLoading(false);
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (unsubFirestore) {
+        unsubFirestore();
+        unsubFirestore = null;
       }
-    );
 
-    return () => unsubscribe();
+      if (!firebaseUser) {
+        setData([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      const q = constraints.length > 0
+        ? query(collection(db, collectionName), ...constraints)
+        : collection(db, collectionName);
+
+      unsubFirestore = onSnapshot(
+        q,
+        (snapshot) => {
+          const docs = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as T[];
+          setData(docs);
+          setLoading(false);
+        },
+        (err) => {
+          console.error(`Error fetching ${collectionName}:`, err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubFirestore) unsubFirestore();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionName]);
 
