@@ -8,8 +8,18 @@ import React, {
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
 
+type UserProfile = {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  dateOfBirth?: string;
+  role: string;
+  isActive: boolean;
+};
+
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
+  profile: UserProfile | null;
   isGuest: boolean;
   loading: boolean;
   initializing: boolean;
@@ -42,16 +52,22 @@ export const AuthProvider = ({
 }) => {
   const [user, setUser] =
     useState<FirebaseAuthTypes.User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
 
   const initializingRef = useRef(true);
+  // Prevents onAuthStateChanged from navigating the app while login() is
+  // still validating the account (suspension check, Firestore backfill, etc.)
+  const pendingLoginRef = useRef(false);
 
   // ✅ LISTEN TO AUTH STATE (SOURCE OF TRUTH)
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged((firebaseUser) => {
+      if (pendingLoginRef.current) return;
+
       setUser(firebaseUser);
       setIsGuest(false);
 
@@ -64,8 +80,33 @@ export const AuthProvider = ({
     return unsubscribe;
   }, []);
 
+  // 🔥 REAL-TIME FIRESTORE PROFILE LISTENER
+  // Also signs out the user immediately if admin suspends them while logged in
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    const unsubscribe = firestore()
+      .collection("users")
+      .doc(user.uid)
+      .onSnapshot((doc) => {
+        if (!doc.exists()) return;
+        const data = doc.data() as UserProfile;
+        if (data.isActive === false) {
+          auth().signOut();
+        } else {
+          setProfile(data);
+        }
+      });
+
+    return unsubscribe;
+  }, [user?.uid]);
+
   // 🔐 LOGIN
   const login = async (email: string, password: string) => {
+    pendingLoginRef.current = true;
     try {
       setLoading(true);
 
@@ -74,10 +115,24 @@ export const AuthProvider = ({
         password
       );
 
-      // Backfill missing fields for users registered before the full profile was saved
+      // Check suspension and backfill missing fields
       const userRef = firestore().collection("users").doc(cred.user.uid);
       const snap = await userRef.get();
-      if (!snap.exists()) {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data?.isActive === false) {
+          await auth().signOut();
+          return { success: false, error: "Your account has been suspended. Please contact support." };
+        }
+        if (!data?.role) {
+          await userRef.update({
+            fullName: data?.fullName || cred.user.displayName || "",
+            email: data?.email || cred.user.email || "",
+            role: "customer",
+            isActive: true,
+          });
+        }
+      } else {
         await userRef.set({
           fullName: cred.user.displayName || email.trim().split("@")[0],
           email: cred.user.email || email.trim().toLowerCase(),
@@ -86,15 +141,9 @@ export const AuthProvider = ({
           isActive: true,
           createdAt: firestore.FieldValue.serverTimestamp(),
         });
-      } else if (!snap.data()?.role) {
-        await userRef.update({
-          fullName: snap.data()?.fullName || cred.user.displayName || "",
-          email: snap.data()?.email || cred.user.email || "",
-          role: "customer",
-          isActive: true,
-        });
       }
 
+      // Only navigate into the app after all validation passes
       setUser(cred.user);
       setIsGuest(false);
 
@@ -112,6 +161,7 @@ export const AuthProvider = ({
 
       return { success: false, error };
     } finally {
+      pendingLoginRef.current = false;
       setLoading(false);
     }
   };
@@ -212,6 +262,7 @@ export const AuthProvider = ({
     <AuthContext.Provider
       value={{
         user,
+        profile,
         isGuest,
         loading,
         initializing,

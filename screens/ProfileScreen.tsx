@@ -12,7 +12,7 @@ import { COLORS } from "../constants/colors";
 import { useAuth } from "../context/AuthContext";
 
 const ProfileScreen = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, profile } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
@@ -20,8 +20,7 @@ const ProfileScreen = () => {
     await logout();
   };
 
-  // ✅ REAL USER DATA FROM FIREBASE
-  const fullName = user?.displayName || "User";
+  const fullName = profile?.fullName || user?.displayName || "User";
   const email = user?.email || "No email";
 
   const initial = fullName?.charAt(0)?.toUpperCase() || "U";

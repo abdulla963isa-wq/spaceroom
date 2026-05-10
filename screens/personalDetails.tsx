@@ -40,6 +40,7 @@ const PersonalDetailsScreen = () => {
             .get();
           if (doc.exists()) {
             const data = doc.data();
+            setName(data?.fullName || user?.displayName || "");
             setDateOfBirth(data?.dateOfBirth || "");
             setPhoneNumber(data?.phoneNumber || "");
           }
@@ -70,6 +71,7 @@ const PersonalDetailsScreen = () => {
         .doc(user?.uid)
         .set(
           {
+            fullName: name.trim(),
             dateOfBirth: dateOfBirth.trim(),
             phoneNumber: phoneNumber.trim(),
           },
