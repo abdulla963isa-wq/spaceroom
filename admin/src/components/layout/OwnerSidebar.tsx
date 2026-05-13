@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -31,7 +32,28 @@ const navItems = [
 export default function OwnerSidebar() {
   const pathname = usePathname();
   const { userProfile, logout } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, notifications } = useNotifications();
+  const seenIds = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (notifications.length === 0) return;
+    if (seenIds.current === null) {
+      seenIds.current = new Set(notifications.map((n) => n.id));
+      return;
+    }
+    const fresh = notifications.filter((n) => !seenIds.current!.has(n.id) && !n.isRead && n.type !== 'booking');
+    fresh.forEach((n) => {
+      const icon = n.type === 'system' ? 'ℹ️' : '📢';
+      const preview = n.message.length > 70 ? n.message.slice(0, 70) + '…' : n.message;
+      toast(`${n.title} — ${preview}`, {
+        icon,
+        duration: 6000,
+        style: { background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '13px' },
+      });
+      seenIds.current!.add(n.id);
+    });
+    notifications.forEach((n) => seenIds.current!.add(n.id));
+  }, [notifications]);
 
   const handleLogout = async () => {
     try {

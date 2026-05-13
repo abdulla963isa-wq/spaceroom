@@ -14,7 +14,7 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Notification, User, Booking } from '@/types';
+import { Notification, User, Booking, PendingChange } from '@/types';
 
 // Real-time collection listener
 export function getCollection(
@@ -282,5 +282,85 @@ export async function cancelBooking(
     `Your booking for ${spaceName} on ${date} has been cancelled. You can book any other available time slot.`,
     'booking',
     { bookingId }
+  );
+}
+
+// Submit a pending change request (owner edit/create).
+// Writes only to pendingChanges — no cross-user reads required from the owner's context.
+export async function submitPendingChange(
+  entityType: 'venue' | 'space',
+  action: 'create' | 'edit',
+  entityId: string | undefined,
+  entityName: string,
+  ownerId: string,
+  ownerName: string,
+  payload: Record<string, unknown>,
+  venueName?: string
+): Promise<string> {
+  const docData: Record<string, unknown> = {
+    type: entityType,
+    action,
+    entityName,
+    ownerId,
+    ownerName,
+    status: 'pending',
+    ...(venueName && { venueName }),
+  };
+
+  if (action === 'edit') {
+    docData.entityId = entityId;
+    docData.changes = payload;
+  } else {
+    docData.newData = payload;
+  }
+
+  return createDoc('pendingChanges', docData);
+}
+
+// Approve a pending change — applies the underlying create or update, then notifies the owner
+export async function approvePendingChange(pendingChangeId: string): Promise<void> {
+  const raw = await getDocById('pendingChanges', pendingChangeId);
+  if (!raw) throw new Error('Pending change not found');
+  const change = raw as unknown as PendingChange;
+
+  const col = change.type === 'venue' ? 'venues' : 'spaces';
+
+  if (change.action === 'create' && change.newData) {
+    await createDoc(col, change.newData);
+  } else if (change.action === 'edit' && change.entityId && change.changes) {
+    const updates: Record<string, unknown> = {};
+    Object.entries(change.changes).forEach(([field, val]) => {
+      updates[field] = (val as { from: unknown; to: unknown }).to;
+    });
+    await updateDoc(col, change.entityId, updates);
+  }
+
+  await updateDoc('pendingChanges', pendingChangeId, { status: 'approved' });
+
+  const entityLabel = change.type === 'venue' ? 'Venue' : 'Space';
+  await createNotification(
+    change.ownerId,
+    'owner',
+    `${entityLabel} Request Approved`,
+    `Your request to ${change.action === 'create' ? 'add' : 'update'} "${change.entityName}" has been approved and is now live.`,
+    'system'
+  );
+}
+
+// Reject a pending change — marks it as rejected and notifies the owner
+export async function rejectPendingChange(pendingChangeId: string): Promise<void> {
+  const raw = await getDocById('pendingChanges', pendingChangeId);
+  if (!raw) throw new Error('Pending change not found');
+  const change = raw as unknown as PendingChange;
+
+  await updateDoc('pendingChanges', pendingChangeId, { status: 'rejected' });
+
+  const entityLabel = change.type === 'venue' ? 'Venue' : 'Space';
+  await createNotification(
+    change.ownerId,
+    'owner',
+    `${entityLabel} Request Rejected`,
+    `Your request to ${change.action === 'create' ? 'add' : 'update'} "${change.entityName}" was not approved by the admin.`,
+    'system'
   );
 }

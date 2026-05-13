@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Space, Venue } from '@/types';
+import { Space, Venue, PendingChange } from '@/types';
 import { updateDoc, deleteDoc } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
@@ -33,6 +33,8 @@ export default function OwnerSpacesPage() {
   const [calendarSpace, setCalendarSpace] = useState<Space | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pendingSpaceIds, setPendingSpaceIds] = useState<Set<string>>(new Set());
+  const [pendingNewCount, setPendingNewCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -58,6 +60,21 @@ export default function OwnerSpacesPage() {
     });
 
     return () => unsubVenues();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'pendingChanges'),
+      where('ownerId', '==', user.uid)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const changes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as PendingChange))
+        .filter((c) => c.status === 'pending' && c.type === 'space');
+      setPendingSpaceIds(new Set(changes.filter((c) => c.action === 'edit' && c.entityId).map((c) => c.entityId!)));
+      setPendingNewCount(changes.filter((c) => c.action === 'create').length);
+    });
+    return () => unsub();
   }, [user]);
 
   const venueMap = useMemo(() => {
@@ -114,7 +131,17 @@ export default function OwnerSpacesPage() {
     { key: 'pricePerHour', label: 'Price/hr', render: (v) => <span className="text-primary font-medium">{formatCurrency(v as number)}</span> },
     { key: 'capacity', label: 'Capacity' },
     { key: 'quantity', label: 'Qty' },
-    { key: 'isActive', label: 'Status', render: (v) => <Badge status={v ? 'active' : 'inactive'} /> },
+    {
+      key: 'isActive', label: 'Status',
+      render: (v, row) => (
+        <div className="flex flex-col gap-1">
+          <Badge status={v ? 'active' : 'inactive'} />
+          {pendingSpaceIds.has((row as unknown as Space).id) && (
+            <span className="text-warning text-xs font-medium whitespace-nowrap">Pending Approval</span>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'id', label: 'Actions',
       render: (_, row) => (
@@ -147,6 +174,12 @@ export default function OwnerSpacesPage() {
     <div className="flex flex-col flex-1">
       <Header title="My Spaces" />
       <div className="p-6 space-y-4">
+        {pendingNewCount > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-warning/5 border border-warning/20 rounded-xl text-warning text-sm">
+            <span className="w-2 h-2 rounded-full bg-warning animate-pulse flex-shrink-0" />
+            {pendingNewCount} new space{pendingNewCount > 1 ? 's' : ''} pending admin approval
+          </div>
+        )}
         <div className="flex gap-3 items-center justify-between">
           <div className="flex gap-3 flex-1">
             <div className="relative flex-1 max-w-xs">

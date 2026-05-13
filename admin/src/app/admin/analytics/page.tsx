@@ -19,6 +19,7 @@ type DateRange = '7d' | '30d' | '90d';
 
 export default function AdminAnalyticsPage() {
   const { data: bookings, loading } = useCollection<Booking>('bookings');
+  const { data: users } = useCollection<{ id: string; fullName: string; email: string }>('users');
   const [dateRange, setDateRange] = useState<DateRange>('30d');
 
   const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
@@ -103,13 +104,19 @@ export default function AdminAnalyticsPage() {
 
   // Most active users
   const activeUsers = useMemo(() => {
+    const userMap = new Map(users.map((u) => [u.id, u]));
     const map: Record<string, number> = {};
-    filteredBookings.forEach((b) => { map[b.userId] = (map[b.userId] || 0) + 1; });
+    filteredBookings
+      .filter((b) => !b.isOwnerBlock)
+      .forEach((b) => { map[b.userId] = (map[b.userId] || 0) + 1; });
     return Object.entries(map)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
-      .map(([userId, count]) => ({ userId, count }));
-  }, [filteredBookings]);
+      .map(([userId, count]) => {
+        const user = userMap.get(userId);
+        return { name: user?.fullName || user?.email || userId, count };
+      });
+  }, [filteredBookings, users]);
 
   const rangeOptions: { label: string; value: DateRange }[] = [
     { label: 'Last 7 days', value: '7d' },
@@ -164,7 +171,7 @@ export default function AdminAnalyticsPage() {
           <h3 className="text-white font-semibold mb-4">Most Active Users (Top 10)</h3>
           <DataTable
             columns={[
-              { key: 'userId', label: 'User ID', render: (v) => <span className="font-mono text-xs text-text-muted">{v as string}</span> },
+              { key: 'name', label: 'User', render: (v) => <span className="text-white text-sm">{v as string}</span> },
               {
                 key: 'count', label: 'Bookings',
                 render: (v) => <span className="text-primary font-bold">{v as number}</span>,

@@ -104,8 +104,9 @@ const PersonalDetailsScreen = () => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
           >
-            <Text style={styles.backText}>‹</Text>
+            <Text style={styles.backChevron}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Personal Details</Text>
         </View>
@@ -196,18 +197,22 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
-  backText: {
-    fontSize: 24,
+  backChevron: {
+    fontSize: 28,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontWeight: "300",
+    lineHeight: 32,
+    marginTop: -2,
   },
   headerTitle: {
     fontSize: 20,

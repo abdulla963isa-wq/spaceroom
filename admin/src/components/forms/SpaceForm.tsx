@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Space, Venue } from '@/types';
-import { createDoc, updateDoc } from '@/lib/firestore';
+import { createDoc, updateDoc, submitPendingChange } from '@/lib/firestore';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +21,7 @@ interface SpaceFormProps {
 }
 
 export default function SpaceForm({ space, preselectedVenueId, onSuccess, onCancel }: SpaceFormProps) {
-  const { user, role } = useAuth();
+  const { user, userProfile, role } = useAuth();
   const isEditing = !!space;
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loadingVenues, setLoadingVenues] = useState(true);
@@ -134,6 +134,41 @@ export default function SpaceForm({ space, preselectedVenueId, onSuccess, onCanc
         availabilityText: form.availabilityText,
         isActive: form.isActive,
       };
+
+      if (role === 'owner') {
+        const ownerName = userProfile?.fullName || user?.email || 'Owner';
+        if (isEditing && space?.id) {
+          const changes: Record<string, { from: unknown; to: unknown }> = {};
+          if (data.title !== space.title) changes.title = { from: space.title, to: data.title };
+          if (data.venueId !== space.venueId) changes.venueId = { from: space.venueId, to: data.venueId };
+          if (data.type !== space.type) changes.type = { from: space.type, to: data.type };
+          if (data.capacity !== space.capacity) changes.capacity = { from: space.capacity, to: data.capacity };
+          if (data.pricePerHour !== space.pricePerHour) changes.pricePerHour = { from: space.pricePerHour, to: data.pricePerHour };
+          if (data.quantity !== (space.quantity ?? 1)) changes.quantity = { from: space.quantity ?? 1, to: data.quantity };
+          if (data.description !== (space.description || '')) changes.description = { from: space.description || '', to: data.description };
+          if (data.availabilityText !== (space.availabilityText || '')) changes.availabilityText = { from: space.availabilityText || '', to: data.availabilityText };
+          if (data.isActive !== space.isActive) changes.isActive = { from: space.isActive, to: data.isActive };
+          if (data.image !== (space.image || '')) changes.image = { from: space.image || '', to: data.image };
+          const origTags = JSON.stringify([...(space.tags || [])].sort());
+          const newTags = JSON.stringify([...data.tags].sort());
+          if (origTags !== newTags) changes.tags = { from: space.tags || [], to: data.tags };
+
+          if (Object.keys(changes).length === 0) {
+            toast.error('No changes to submit.');
+            setLoading(false);
+            return;
+          }
+          const selectedVenue = venues.find((v) => v.id === (space.venueId || data.venueId));
+          await submitPendingChange('space', 'edit', space.id, space.title, user!.uid, ownerName, changes as Record<string, unknown>, selectedVenue?.name);
+          toast.success('Changes submitted for admin approval.');
+        } else {
+          const selectedVenue = venues.find((v) => v.id === data.venueId);
+          await submitPendingChange('space', 'create', undefined, data.title, user!.uid, ownerName, data as Record<string, unknown>, selectedVenue?.name);
+          toast.success('Space submitted for admin approval.');
+        }
+        onSuccess();
+        return;
+      }
 
       if (isEditing && space?.id) {
         await updateDoc('spaces', space.id, data);
@@ -344,7 +379,7 @@ export default function SpaceForm({ space, preselectedVenueId, onSuccess, onCanc
           disabled={loading || uploading}
           className="flex-1 py-2.5 rounded-xl bg-primary text-bg font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
         >
-          {loading ? 'Saving...' : isEditing ? 'Update Space' : 'Create Space'}
+          {loading ? 'Submitting...' : role === 'owner' ? 'Submit for Approval' : isEditing ? 'Update Space' : 'Create Space'}
         </button>
       </div>
     </form>

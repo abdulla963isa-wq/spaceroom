@@ -27,7 +27,13 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('DEPS:', list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('VERSION:', d.get\\('version',''\\)\\)\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('dependencies',{}\\), indent=2\\)\\)\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\spaceroom\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(ls -la \"/c/Projects/\")",
+      "Read(//c/Projects//**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\spaceroom\\\\admin\\\\src\" -Recurse -Filter \"*.ts\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Head -30)",
+      "Bash(python3 -c ' *)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\spaceroom\\assets\\images"

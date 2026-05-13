@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Venue } from '@/types';
-import { createDoc, updateDoc } from '@/lib/firestore';
+import { createDoc, updateDoc, submitPendingChange } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { resolveImage } from '@/lib/images';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ interface VenueFormProps {
 }
 
 export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps) {
-  const { user } = useAuth();
+  const { user, userProfile, role } = useAuth();
   const isEditing = !!venue;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,6 +117,36 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         isActive: form.isActive,
         ownerId: venue?.ownerId || user?.uid || '',
       };
+
+      if (role === 'owner') {
+        const ownerName = userProfile?.fullName || user?.email || 'Owner';
+        if (isEditing && venue?.id) {
+          const changes: Record<string, { from: unknown; to: unknown }> = {};
+          if (data.name !== venue.name) changes.name = { from: venue.name, to: data.name };
+          if (data.location !== venue.location) changes.location = { from: venue.location, to: data.location };
+          if (data.description !== (venue.description || '')) changes.description = { from: venue.description || '', to: data.description };
+          if (data.heroImage !== (venue.heroImage || '')) changes.heroImage = { from: venue.heroImage || '', to: data.heroImage };
+          if (data.isActive !== venue.isActive) changes.isActive = { from: venue.isActive, to: data.isActive };
+          if (Math.abs(data.latitude - (venue.latitude || 0)) > 0.000001) changes.latitude = { from: venue.latitude || 0, to: data.latitude };
+          if (Math.abs(data.longitude - (venue.longitude || 0)) > 0.000001) changes.longitude = { from: venue.longitude || 0, to: data.longitude };
+          const origCats = JSON.stringify([...(venue.categories || [])].sort());
+          const newCats = JSON.stringify([...data.categories].sort());
+          if (origCats !== newCats) changes.categories = { from: venue.categories || [], to: data.categories };
+
+          if (Object.keys(changes).length === 0) {
+            toast.error('No changes to submit.');
+            setLoading(false);
+            return;
+          }
+          await submitPendingChange('venue', 'edit', venue.id, venue.name, user!.uid, ownerName, changes as Record<string, unknown>);
+          toast.success('Changes submitted for admin approval.');
+        } else {
+          await submitPendingChange('venue', 'create', undefined, data.name, user!.uid, ownerName, data as Record<string, unknown>);
+          toast.success('Venue submitted for admin approval.');
+        }
+        onSuccess();
+        return;
+      }
 
       if (isEditing && venue?.id) {
         await updateDoc('venues', venue.id, data);
@@ -296,7 +326,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
           disabled={loading || uploading}
           className="flex-1 py-2.5 rounded-xl bg-primary text-bg font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
         >
-          {loading ? 'Saving...' : isEditing ? 'Update Venue' : 'Create Venue'}
+          {loading ? 'Submitting...' : role === 'owner' ? 'Submit for Approval' : isEditing ? 'Update Venue' : 'Create Venue'}
         </button>
       </div>
     </form>

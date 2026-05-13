@@ -311,22 +311,22 @@ const SettingsScreen = () => {
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      {/* Fixed header — outside ScrollView so it never scrolls away */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.backChevron}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Settings</Text>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Settings</Text>
-        </View>
-
         {/* Sections */}
         {sections.map((section) => (
           <View key={section.title} style={styles.section}>
@@ -423,27 +423,30 @@ const styles = StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    alignSelf: "flex-start",
-    marginBottom: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 14,
-    width: 46,
-    height: 46,
     justifyContent: "center",
     alignItems: "center",
   },
-  backArrow: {
-    fontSize: 22,
+  backChevron: {
+    fontSize: 28,
     color: COLORS.textPrimary,
-    fontWeight: "600",
-    lineHeight: 26,
+    fontWeight: "300",
+    lineHeight: 32,
+    marginTop: -2,
   },
   smallLabel: {
     fontSize: 13,
@@ -452,7 +455,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: "700",
     color: COLORS.textPrimary,
   },

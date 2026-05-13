@@ -100,3 +100,18 @@ export interface PeakHoursDataPoint {
   hour: string;
   count: number;
 }
+
+export interface PendingChange {
+  id: string;
+  type: 'venue' | 'space';
+  action: 'create' | 'edit';
+  entityId?: string;
+  entityName: string;
+  ownerId: string;
+  ownerName: string;
+  newData?: Record<string, unknown>;
+  changes?: Record<string, { from: unknown; to: unknown }>;
+  venueName?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp | string;
+}

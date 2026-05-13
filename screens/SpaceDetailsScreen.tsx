@@ -10,7 +10,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import firestore from "@react-native-firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  query,
+  where,
+  onSnapshot,
+} from "@react-native-firebase/firestore";
 import { useFavourites } from "../context/FavouritesContext";
 import type { FavouriteItem } from "../context/FavouritesContext";
 import type { Venue } from "../types/venue";
@@ -23,6 +31,7 @@ type RouteParams = {
 };
 
 const TOTAL_SLOTS = ALL_TIME_SLOTS.length;
+const db = getFirestore();
 
 const SpaceDetailsScreen = () => {
   const navigation = useNavigation<any>();
@@ -41,26 +50,26 @@ const SpaceDetailsScreen = () => {
 
     const loadVenue = async () => {
       if (venueData) return;
-      const doc = await firestore().collection("venues").doc(venueId).get();
-      if (doc.exists()) {
-        setVenue({ id: doc.id, ...(doc.data() as Omit<Venue, "id">) });
+      const venueSnap = await getDoc(doc(db, "venues", venueId));
+      if (venueSnap.exists()) {
+        setVenue({ id: venueSnap.id, ...(venueSnap.data() as Omit<Venue, "id">) });
       }
     };
 
     loadVenue();
 
-    const unsubscribeSpaces = firestore()
-      .collection("spaces")
-      .where("venueId", "==", venueId)
-      .where("isActive", "==", true)
-      .onSnapshot((snapshot) => {
-        if (!snapshot) return;
-        const loadedSpaces = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<Space, "id">),
-        }));
-        setSpaces(loadedSpaces);
-      });
+    const spacesQuery = query(
+      collection(db, "spaces"),
+      where("venueId", "==", venueId),
+      where("isActive", "==", true)
+    );
+    const unsubscribeSpaces = onSnapshot(spacesQuery, (snapshot) => {
+      const loadedSpaces = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Space, "id">),
+      }));
+      setSpaces(loadedSpaces);
+    });
 
     return () => unsubscribeSpaces();
   }, [venueId, venueData]);
@@ -70,44 +79,44 @@ const SpaceDetailsScreen = () => {
 
     const upcomingDates = getUpcomingDateIds();
 
-    const unsubscribe = firestore()
-      .collection("bookings")
-      .where("venueId", "==", venueId)
-      .where("status", "==", "Confirmed")
-      .onSnapshot((snapshot) => {
-        if (!snapshot) return;
-        const slotsBySpace: Record<string, Record<string, Set<string>>> = {};
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("venueId", "==", venueId),
+      where("status", "==", "Confirmed")
+    );
+    const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+      const slotsBySpace: Record<string, Record<string, Set<string>>> = {};
 
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          const { spaceId, date, reservedSlots } = data as {
-            spaceId?: string;
-            date?: string;
-            reservedSlots?: string[];
-          };
+      snapshot.docs.forEach((d) => {
+        const data = d.data();
+        const { spaceId, date, reservedSlots } = data as {
+          spaceId?: string;
+          date?: string;
+          reservedSlots?: string[];
+        };
 
-          if (!spaceId || !date || !Array.isArray(reservedSlots)) return;
-          if (!upcomingDates.includes(date)) return;
+        if (!spaceId || !date || !Array.isArray(reservedSlots)) return;
+        if (!upcomingDates.includes(date)) return;
 
-          if (!slotsBySpace[spaceId]) slotsBySpace[spaceId] = {};
-          if (!slotsBySpace[spaceId][date]) slotsBySpace[spaceId][date] = new Set();
-          reservedSlots.forEach((slot) => {
-            if (slot) slotsBySpace[spaceId][date].add(slot);
-          });
+        if (!slotsBySpace[spaceId]) slotsBySpace[spaceId] = {};
+        if (!slotsBySpace[spaceId][date]) slotsBySpace[spaceId][date] = new Set();
+        reservedSlots.forEach((slot) => {
+          if (slot) slotsBySpace[spaceId][date].add(slot);
         });
-
-        const nextUnavailable: Record<string, boolean> = {};
-
-        spaces.forEach((space) => {
-          const byDate = slotsBySpace[space.id] || {};
-          const allFull = upcomingDates.every(
-            (date) => (byDate[date]?.size ?? 0) >= TOTAL_SLOTS
-          );
-          nextUnavailable[space.id] = allFull;
-        });
-
-        setUnavailableSpaces(nextUnavailable);
       });
+
+      const nextUnavailable: Record<string, boolean> = {};
+
+      spaces.forEach((space) => {
+        const byDate = slotsBySpace[space.id] || {};
+        const allFull = upcomingDates.every(
+          (date) => (byDate[date]?.size ?? 0) >= TOTAL_SLOTS
+        );
+        nextUnavailable[space.id] = allFull;
+      });
+
+      setUnavailableSpaces(nextUnavailable);
+    });
 
     return () => unsubscribe();
   }, [venueId, spaces]);
@@ -143,10 +152,10 @@ const SpaceDetailsScreen = () => {
     <View style={[styles.safeArea, { paddingTop: insets.top }]}> 
       <TouchableOpacity
         onPress={() => navigation.goBack()}
-        style={[styles.backButton, { top: insets.top + 14 }]}
+        style={[styles.backButton, { top: insets.top + 12 }]}
         activeOpacity={0.8}
       >
-        <Text style={styles.backArrow}>←</Text>
+        <Text style={styles.backChevron}>‹</Text>
       </TouchableOpacity>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -313,22 +322,23 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: "absolute",
-    left: 20,
+    left: 16,
     zIndex: 10,
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.55)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  backArrow: {
-    fontSize: 22,
+  backChevron: {
+    fontSize: 28,
     color: "#FFFFFF",
-    fontWeight: "600",
-    lineHeight: 26,
+    fontWeight: "300",
+    lineHeight: 32,
+    marginTop: -2,
   },
   hero: {
     width: "100%",

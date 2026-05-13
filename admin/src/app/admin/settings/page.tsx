@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { updateDoc, migrateVenueNames } from '@/lib/firestore';
+import { updateDoc } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
-import ConfirmModal from '@/components/ui/ConfirmModal';
 import PasswordInput from '@/components/ui/PasswordInput';
-import { User as UserIcon, Lock, AlertTriangle } from 'lucide-react';
+import { User as UserIcon, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminSettingsPage() {
@@ -17,10 +16,8 @@ export default function AdminSettingsPage() {
     email: userProfile?.email || '',
   });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [migrateLoading, setMigrateLoading] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!user || !userProfile) return;
@@ -76,27 +73,6 @@ export default function AdminSettingsPage() {
       }
     } finally {
       setPasswordLoading(false);
-    }
-  };
-
-  const handleClearTestData = async () => {
-    toast.success('Clear test data functionality — implement with caution in production.');
-    setShowClearConfirm(false);
-  };
-
-  const handleMigrateVenueNames = async () => {
-    setMigrateLoading(true);
-    try {
-      const count = await migrateVenueNames();
-      toast.success(
-        count > 0
-          ? `Fixed ${count} booking(s) with outdated venue names.`
-          : 'All venue names are already up to date.'
-      );
-    } catch {
-      toast.error('Failed to migrate venue names.');
-    } finally {
-      setMigrateLoading(false);
     }
   };
 
@@ -187,53 +163,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* Danger Zone */}
-        <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-danger/10 flex items-center justify-center">
-              <AlertTriangle size={18} className="text-danger" />
-            </div>
-            <h2 className="text-danger font-semibold">Danger Zone</h2>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-surface2 rounded-xl border border-danger/20">
-              <div>
-                <p className="text-white text-sm font-medium">Normalize Venue Names</p>
-                <p className="text-text-muted text-xs mt-0.5">Fix outdated venue names in booking records (e.g. &quot;Diwan Hub&quot; → &quot;Diwan Studio&quot;)</p>
-              </div>
-              <button
-                onClick={handleMigrateVenueNames}
-                disabled={migrateLoading}
-                className="px-4 py-2 bg-warning/10 text-warning border border-warning/20 rounded-lg text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all whitespace-nowrap"
-              >
-                {migrateLoading ? 'Fixing...' : 'Fix Names'}
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-surface2 rounded-xl border border-danger/20">
-              <div>
-                <p className="text-white text-sm font-medium">Clear Test Data</p>
-                <p className="text-text-muted text-xs mt-0.5">Remove all test bookings and sample data</p>
-              </div>
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className="px-4 py-2 bg-danger/10 text-danger border border-danger/20 rounded-lg text-sm font-medium hover:bg-danger/20 transition-all"
-              >
-                Clear Data
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
-
-      <ConfirmModal
-        isOpen={showClearConfirm}
-        onClose={() => setShowClearConfirm(false)}
-        onConfirm={handleClearTestData}
-        title="Clear Test Data"
-        message="This will permanently delete test data. This action cannot be undone. Are you absolutely sure?"
-        confirmLabel="Yes, Clear Data"
-        variant="danger"
-      />
     </div>
   );
 }

@@ -13,22 +13,24 @@ interface UseNotificationsResult {
 }
 
 export function useNotifications(): UseNotificationsResult {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    // Wait until both user and role are resolved before subscribing.
+    // role starts as null and loads async — subscribing before it's ready
+    // would create a query with the wrong filter.
+    if (!user || role === null) {
       setNotifications([]);
-      setLoading(false);
+      setLoading(role === null && !!user); // still loading if user is set but role hasn't arrived
       return;
     }
 
-    const q = query(
-      collection(db, 'notifications'),
-      where('receiverId', '==', user.uid),
-      limit(50)
-    );
+    // Admin sees all admin-role notifications; everyone else sees only their own
+    const q = role === 'admin'
+      ? query(collection(db, 'notifications'), where('receiverRole', '==', 'admin'), limit(100))
+      : query(collection(db, 'notifications'), where('receiverId', '==', user.uid), limit(50));
 
     const unsubscribe = onSnapshot(
       q,
@@ -36,12 +38,12 @@ export function useNotifications(): UseNotificationsResult {
         const notifs = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() } as Notification))
           .sort((a, b) => {
-            const aTime = typeof a.createdAt === 'object' && a.createdAt && 'toDate' in a.createdAt
+            const aTime = a.createdAt != null && typeof a.createdAt === 'object' && 'toDate' in a.createdAt
               ? (a.createdAt as { toDate: () => Date }).toDate().getTime()
-              : new Date(a.createdAt as string).getTime();
-            const bTime = typeof b.createdAt === 'object' && b.createdAt && 'toDate' in b.createdAt
+              : a.createdAt ? new Date(a.createdAt as string).getTime() : 0;
+            const bTime = b.createdAt != null && typeof b.createdAt === 'object' && 'toDate' in b.createdAt
               ? (b.createdAt as { toDate: () => Date }).toDate().getTime()
-              : new Date(b.createdAt as string).getTime();
+              : b.createdAt ? new Date(b.createdAt as string).getTime() : 0;
             return bTime - aTime;
           });
         setNotifications(notifs);
@@ -54,7 +56,7 @@ export function useNotifications(): UseNotificationsResult {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, role]); // role must be in deps — it loads async after user
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 

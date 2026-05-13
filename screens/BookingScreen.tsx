@@ -312,6 +312,18 @@ const BookingScreen = () => {
         } as const);
       });
 
+      // Notify admin of new booking (fire-and-forget — booking is already committed)
+      firestore().collection('notifications').add({
+        receiverId: 'admin',
+        receiverRole: 'admin',
+        title: 'New Booking',
+        message: `${venueName} · ${selectedSlot.spaceName} on ${selectedDate.fullDate} (${selectedSlot.startTime}–${endTimeStr})`,
+        type: 'booking',
+        isRead: false,
+        metadata: { bookingId, venueId, venueName, spaceName: selectedSlot.spaceName, date: selectedDateId },
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      }).catch(() => { /* non-critical, booking is already saved */ });
+
       navigation.navigate("BookingSuccess", {
         booking: {
           id: bookingId,
@@ -346,20 +358,22 @@ const BookingScreen = () => {
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={styles.screen}>
+        {/* Fixed header — outside ScrollView so it never scrolls away */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.8}>
+            <Text style={styles.backChevron}>‹</Text>
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.smallLabel}>Booking</Text>
+            <Text style={styles.title}>{venueName}</Text>
+            <Text style={styles.location}>{location}</Text>
+          </View>
+        </View>
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Text style={styles.backArrow}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.smallLabel}>Booking</Text>
-            <Text style={styles.title}>{venueName}</Text>
-            <Text style={styles.location}>{location}</Text>
-          </View>
 
           {/* 1. Day picker */}
           <View style={styles.card}>
@@ -555,41 +569,50 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   screen: { flex: 1, backgroundColor: COLORS.background },
   container: { flex: 1 },
-  scrollContent: { paddingTop: 32, paddingBottom: 120 },
+  scrollContent: { paddingTop: 16, paddingBottom: 120 },
 
-  header: { paddingHorizontal: 20, paddingBottom: 12 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
 
   backButton: {
-    alignSelf: "flex-start",
-    marginBottom: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 14,
-    width: 46,
-    height: 46,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
 
-  backArrow: {
-    fontSize: 22,
+  backChevron: {
+    fontSize: 28,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontWeight: "300",
+    lineHeight: 32,
+    marginTop: -2,
   },
 
   smallLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: COLORS.primary,
-    marginBottom: 8,
+    marginBottom: 2,
   },
 
   title: {
-    fontSize: 30,
+    fontSize: 18,
     fontWeight: "700",
     color: COLORS.textPrimary,
-    marginBottom: 4,
+    marginBottom: 1,
   },
 
   spaceTypeLabel: {

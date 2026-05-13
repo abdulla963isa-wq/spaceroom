@@ -1,11 +1,12 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
-import { Bell, Check, CheckCheck, Info, Calendar } from 'lucide-react';
+import { Bell, Check, CheckCheck, Info, Calendar, Search } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -21,6 +22,22 @@ export default function OwnerNotificationsPage() {
   const { notifications, unreadCount, loading } = useNotifications();
   const { user } = useAuth();
   const router = useRouter();
+
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [readFilter, setReadFilter] = useState('');
+
+  const filtered = useMemo(() => {
+    return notifications.filter((n) => {
+      const q = search.toLowerCase();
+      const matchSearch = !search ||
+        n.title.toLowerCase().includes(q) ||
+        n.message.toLowerCase().includes(q);
+      const matchType = !typeFilter || n.type === typeFilter;
+      const matchRead = readFilter === '' ? true : readFilter === 'unread' ? !n.isRead : n.isRead;
+      return matchSearch && matchType && matchRead;
+    });
+  }, [notifications, search, typeFilter, readFilter]);
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -54,12 +71,41 @@ export default function OwnerNotificationsPage() {
     <div className="flex flex-col flex-1">
       <Header title="Notifications" />
       <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-text-muted text-sm">{notifications.length} notifications</p>
-            {unreadCount > 0 && (
-              <p className="text-primary text-xs mt-0.5">{unreadCount} unread</p>
-            )}
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          <div className="flex gap-3 flex-1 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 max-w-xs">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search notifications..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-surface2 border border-border rounded-xl text-white placeholder-text-muted text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+            {/* Type filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-surface2 border border-border rounded-xl px-3 py-2.5 text-text-secondary text-sm focus:outline-none focus:border-primary"
+            >
+              <option value="">All Types</option>
+              <option value="booking">Booking</option>
+              <option value="system">System</option>
+              <option value="announcement">Announcement</option>
+            </select>
+            {/* Read filter */}
+            <select
+              value={readFilter}
+              onChange={(e) => setReadFilter(e.target.value)}
+              className="bg-surface2 border border-border rounded-xl px-3 py-2.5 text-text-secondary text-sm focus:outline-none focus:border-primary"
+            >
+              <option value="">All</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>
           </div>
           {unreadCount > 0 && (
             <button
@@ -72,23 +118,35 @@ export default function OwnerNotificationsPage() {
           )}
         </div>
 
+        {/* Count line */}
+        <div>
+          <p className="text-text-muted text-sm">{filtered.length} notification{filtered.length !== 1 ? 's' : ''}</p>
+          {unreadCount > 0 && (
+            <p className="text-primary text-xs mt-0.5">{unreadCount} unread</p>
+          )}
+        </div>
+
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="skeleton h-24 rounded-2xl" />
             ))}
           </div>
-        ) : notifications.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-text-muted">
             <Bell size={48} className="opacity-30" />
             <div className="text-center">
-              <p className="font-medium text-white">No notifications</p>
-              <p className="text-sm mt-1">You&apos;re all caught up!</p>
+              <p className="font-medium text-white">
+                {notifications.length === 0 ? 'No notifications' : 'No results'}
+              </p>
+              <p className="text-sm mt-1">
+                {notifications.length === 0 ? "You're all caught up!" : 'Try adjusting your search or filters.'}
+              </p>
             </div>
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((notif) => {
+            {filtered.map((notif) => {
               const config = getConfig(notif.type);
               const Icon = config.icon;
 

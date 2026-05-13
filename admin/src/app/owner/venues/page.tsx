@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { query, where, onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Venue } from '@/types';
+import { Venue, PendingChange } from '@/types';
 import { updateDoc, deleteDoc } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -28,6 +27,8 @@ export default function OwnerVenuesPage() {
   const [editVenue, setEditVenue] = useState<Venue | null>(null);
   const [deleteVenue, setDeleteVenue] = useState<Venue | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pendingVenueIds, setPendingVenueIds] = useState<Set<string>>(new Set());
+  const [pendingNewCount, setPendingNewCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -37,6 +38,21 @@ export default function OwnerVenuesPage() {
       setLoading(false);
     });
     return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'pendingChanges'),
+      where('ownerId', '==', user.uid)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const changes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as PendingChange))
+        .filter((c) => c.status === 'pending' && c.type === 'venue');
+      setPendingVenueIds(new Set(changes.filter((c) => c.action === 'edit' && c.entityId).map((c) => c.entityId!)));
+      setPendingNewCount(changes.filter((c) => c.action === 'create').length);
+    });
+    return () => unsub();
   }, [user]);
 
   const handleToggleActive = async (venue: Venue) => {
@@ -66,6 +82,12 @@ export default function OwnerVenuesPage() {
     <div className="flex flex-col flex-1">
       <Header title="My Venues" />
       <div className="p-6">
+        {pendingNewCount > 0 && (
+          <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-warning/5 border border-warning/20 rounded-xl text-warning text-sm">
+            <span className="w-2 h-2 rounded-full bg-warning animate-pulse flex-shrink-0" />
+            {pendingNewCount} new venue{pendingNewCount > 1 ? 's' : ''} pending admin approval
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <p className="text-text-muted text-sm">{venues.length} venue{venues.length !== 1 ? 's' : ''}</p>
           <button
@@ -109,8 +131,13 @@ export default function OwnerVenuesPage() {
                       <Building2 size={40} className="text-border" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
                     <Badge status={venue.isActive ? 'active' : 'inactive'} />
+                    {pendingVenueIds.has(venue.id) && (
+                      <span className="px-2 py-0.5 bg-warning/90 text-bg text-xs rounded-full font-medium">
+                        Pending Approval
+                      </span>
+                    )}
                   </div>
                 </div>
 
