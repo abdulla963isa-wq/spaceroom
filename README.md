@@ -1,97 +1,244 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# SpaceRoom
 
-# Getting Started
+A full-stack space booking platform consisting of a **React Native mobile app** for customers and a **Next.js web dashboard** for admins and venue owners — all backed by Firebase.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Project Structure
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+```
+spaceroom/
+├── admin/               # Next.js web dashboard (Admin & Owner portals)
+│   ├── src/
+│   │   ├── app/         # Next.js App Router pages
+│   │   │   ├── admin/   # Admin portal pages
+│   │   │   └── owner/   # Owner portal pages
+│   │   ├── components/  # Shared UI components
+│   │   ├── context/     # Auth context
+│   │   ├── hooks/       # Custom React hooks
+│   │   ├── lib/         # Firebase, Firestore helpers, utils
+│   │   └── types/       # TypeScript types
+├── components/          # Shared React Native components
+├── constants/           # Colors, constants
+├── context/             # Auth, Favourites context providers
+├── navigation/          # React Navigation setup (AppNavigator)
+├── screens/             # All app screens
+│   ├── Auth/            # Login, Register, Forgot Password
+│   ├── homeScreen.tsx
+│   ├── SpaceDetailsScreen.tsx
+│   ├── BookingScreen.tsx
+│   ├── BookingSuccessScreen.tsx
+│   ├── MyBookingsScreen.tsx
+│   ├── FavouriteScreen.tsx
+│   ├── ProfileScreen.tsx
+│   ├── SettingScreen.tsx
+│   └── personalDetails.tsx
+├── types/               # Shared TypeScript types
+└── utils/               # Helper functions
+```
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
+
+## Tech Stack
+
+### Mobile App
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.84.1 |
+| Language | TypeScript |
+| Navigation | React Navigation 7 (Stack + Bottom Tabs) |
+| Backend | Firebase (Auth + Firestore) |
+| Safe Area | react-native-safe-area-context |
+| Gestures | react-native-gesture-handler |
+| Location | react-native-geolocation-service |
+
+### Web Dashboard (`admin/`)
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| Backend | Firebase Firestore |
+| Toasts | react-hot-toast |
+| Icons | lucide-react |
+| Charts | recharts |
+
+---
+
+## Firebase Collections
+
+| Collection | Description |
+|---|---|
+| `users` | User profiles with `role` field (`customer`, `owner`, `admin`) |
+| `venues` | Venue documents with `ownerId`, categories, images |
+| `spaces` | Space listings linked to venues via `venueId` |
+| `bookings` | Booking records with `status`, `reservedSlots`, `total` |
+| `notifications` | In-app notifications with `receiverRole` / `receiverId` |
+| `pendingChanges` | Owner edit/create requests awaiting admin approval |
+| `favourites` | Per-user favourite spaces |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 22.11.0
+- Android Studio / Xcode (for mobile)
+- A Firebase project with Firestore and Authentication enabled
+
+### 1. Clone & install dependencies
 
 ```sh
-# Using npm
+# Mobile app (root)
+npm install
+
+# Web dashboard
+cd admin && npm install
+```
+
+### 2. Firebase configuration
+
+**Mobile app** — add your `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) to the appropriate native folders.
+
+**Web dashboard** — create `admin/.env.local`:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+```
+
+### 3. Firestore Security Rules
+
+Apply the following rules in **Firebase Console → Firestore Database → Rules**:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwnerRole() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /venues/{venueId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isOwnerRole();
+      allow update, delete: if isAdmin() ||
+        (isOwnerRole() && resource.data.ownerId == request.auth.uid);
+    }
+
+    match /spaces/{spaceId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isOwnerRole();
+      allow update, delete: if isAdmin() ||
+        (isOwnerRole() && resource.data.ownerId == request.auth.uid);
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() ||
+        (isOwnerRole() && resource.data.ownerId == request.auth.uid) ||
+        (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin() ||
+        (isSignedIn() && resource.data.receiverId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.receiverId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /pendingChanges/{changeId} {
+      allow read: if isAdmin() ||
+        (isOwnerRole() && resource.data.ownerId == request.auth.uid);
+      allow create: if isAdmin() || isOwnerRole();
+      allow update, delete: if isAdmin();
+    }
+
+    match /favourites/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+---
+
+## Running the App
+
+### Mobile (React Native)
+
+```sh
+# Start Metro bundler
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Run on Android
 npm run android
 
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+# Run on iOS (install pods first)
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
+npm run ios
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### Web Dashboard
 
 ```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+cd admin
+npm run dev     # Development server on http://localhost:3000
+npm run build   # Production build
+npm start       # Start production server
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Features
 
-## Step 3: Modify your app
+### Customer Mobile App
+- Browse venues and spaces with real-time availability
+- Slot-based booking with time selection
+- Live availability tracking (fully booked spaces dimmed automatically)
+- Booking history with status tracking
+- Favourites list
+- Profile and personal details management
+- Settings (notifications, privacy, appearance)
 
-Now that you have successfully run the app, let's make changes!
+### Owner Web Dashboard (`/owner`)
+- Real-time new booking popup alerts
+- Venue and space management (edits go through admin approval)
+- Booking calendar with slot blocking
+- Analytics (revenue, bookings over time)
+- Notification centre
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+### Admin Web Dashboard (`/admin`)
+- Overview stats (users, venues, spaces, bookings, revenue)
+- User, venue, space, and booking management
+- Pending change approval queue (venue/space edit requests from owners)
+- Real-time new booking popup alerts
+- Notification centre
+- Analytics charts
