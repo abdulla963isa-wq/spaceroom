@@ -9,6 +9,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import firestore from "@react-native-firebase/firestore";
 import { useAuth } from "../context/AuthContext";
@@ -33,6 +34,7 @@ type Booking = {
   reservedSlots: string[];
   total: number;
   status: string;
+  cancelledBy?: 'admin' | 'owner';
   image: any;
 };
 
@@ -69,9 +71,15 @@ const isPast = (date: string, time: string): boolean => {
 };
 
 const deriveStatus = (firestoreStatus: string, date: string, endTime: string): string => {
-  if (firestoreStatus === "Cancelled") return "Cancelled";
+  if (firestoreStatus === "Cancelled" || firestoreStatus === "Blocked") return "Cancelled";
   if (!endTime) return firestoreStatus || "Confirmed";
   return isPast(date, endTime) ? "Completed" : "Confirmed";
+};
+
+const cancellationLabel = (cancelledBy?: 'admin' | 'owner'): string => {
+  if (cancelledBy === 'admin') return "Cancelled by Admin";
+  if (cancelledBy === 'owner') return "Cancelled by Owner";
+  return "Cancelled";
 };
 
 const MyBookingsScreen = () => {
@@ -136,12 +144,27 @@ const MyBookingsScreen = () => {
               reservedSlots,
               total: d.total,
               status,
+              cancelledBy: d.cancelledBy,
               image: d.venueId === "savoy-grande" ? savoyImg : diwanImg,
             };
           });
 
-          // Detect external cancellations (admin/owner cancelled the booking)
-          if (Object.keys(prevStatusRef.current).length > 0) {
+          const isFirstLoad = Object.keys(prevStatusRef.current).length === 0;
+
+          if (isFirstLoad) {
+            // On first load: check for admin/owner cancellations the user hasn't acknowledged yet
+            const externalCancelled = all.filter(
+              (b) => b.status === "Cancelled" && b.cancelledBy
+            );
+            if (externalCancelled.length > 0) {
+              AsyncStorage.getItem("ack_cancellations").then((raw) => {
+                const acked = new Set<string>(raw ? JSON.parse(raw) : []);
+                const unseen = externalCancelled.find((b) => !acked.has(b.id));
+                if (unseen) setExternalCancel(unseen);
+              });
+            }
+          } else {
+            // Live update: detect status change from Confirmed → Cancelled
             for (const b of all) {
               const prev = prevStatusRef.current[b.id];
               if (
@@ -150,7 +173,7 @@ const MyBookingsScreen = () => {
                 !userInitiatedRef.current.has(b.id)
               ) {
                 setExternalCancel(b);
-                break; // show one at a time
+                break;
               }
             }
           }
@@ -197,12 +220,24 @@ const MyBookingsScreen = () => {
     }
   };
 
+  const dismissExternalCancel = () => {
+    if (externalCancel) {
+      AsyncStorage.getItem("ack_cancellations").then((raw) => {
+        const acked: string[] = raw ? JSON.parse(raw) : [];
+        if (!acked.includes(externalCancel.id)) {
+          AsyncStorage.setItem("ack_cancellations", JSON.stringify([...acked, externalCancel.id]));
+        }
+      });
+    }
+    setExternalCancel(null);
+  };
+
   const detailRows = (b: Booking) => [
     { label: "Booking ID", value: `#BK-${b.id.slice(0, 8).toUpperCase()}` },
     { label: "Date", value: b.fullDate },
     { label: "Time", value: `${b.startTime} - ${b.endTime}` },
     { label: "Duration", value: `${b.duration} ${b.duration === 1 ? "hour" : "hours"}` },
-    { label: "Status", value: b.status, isStatus: true },
+    { label: "Status", value: b.status === "Cancelled" ? cancellationLabel(b.cancelledBy) : b.status, isStatus: true },
     { label: "Total paid", value: `BHD ${b.total.toFixed(2)}`, isPrice: true },
   ];
 
@@ -263,7 +298,9 @@ const MyBookingsScreen = () => {
 
                       <View style={[styles.statusBadge, statusBadgeStyle(booking.status)]}>
                         <Text style={[styles.statusText, statusTextStyle(booking.status)]}>
-                          {booking.status}
+                          {booking.status === "Cancelled"
+                            ? cancellationLabel(booking.cancelledBy)
+                            : booking.status}
                         </Text>
                       </View>
                     </View>
@@ -415,7 +452,7 @@ const MyBookingsScreen = () => {
           visible={!!externalCancel}
           transparent
           animationType="slide"
-          onRequestClose={() => setExternalCancel(null)}
+          onRequestClose={dismissExternalCancel}
         >
           <View style={styles.alertOverlay}>
             <View style={styles.alertBox}>
@@ -427,12 +464,16 @@ const MyBookingsScreen = () => {
                 We&apos;re sorry, your booking for{" "}
                 <Text style={styles.alertHighlight}>{externalCancel?.spaceName}</Text> on{" "}
                 <Text style={styles.alertHighlight}>{externalCancel?.fullDate}</Text> has been
-                cancelled.{"\n\n"}You can book any other available time slot — we&apos;d love to
-                have you back!
+                cancelled by the{" "}
+                <Text style={styles.alertHighlight}>
+                  {externalCancel?.cancelledBy === "owner" ? "venue owner" : "admin"}
+                </Text>
+                .{"\n\n"}You can book any other available time slot — we&apos;d love to have you
+                back!
               </Text>
               <TouchableOpacity
                 style={styles.alertDismissBtn}
-                onPress={() => setExternalCancel(null)}
+                onPress={dismissExternalCancel}
                 activeOpacity={0.8}
               >
                 <Text style={styles.alertDismissText}>Got it</Text>

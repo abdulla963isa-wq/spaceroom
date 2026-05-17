@@ -96,7 +96,7 @@ export default function OwnerBookingsPage() {
     if (!cancelItem) return;
     setActionLoading(true);
     try {
-      await cancelBooking(cancelItem.id, cancelItem.userId, cancelItem.spaceName, cancelItem.date, restoreSlot);
+      await cancelBooking(cancelItem.id, cancelItem.userId, cancelItem.spaceName, cancelItem.date, restoreSlot, 'owner');
       toast.success(
         restoreSlot
           ? 'Booking cancelled — slot restored for rebooking.'

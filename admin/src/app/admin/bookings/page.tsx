@@ -79,7 +79,8 @@ export default function AdminBookingsPage() {
         cancelBookingItem.userId,
         cancelBookingItem.spaceName,
         cancelBookingItem.date,
-        restoreSlot
+        restoreSlot,
+        'admin'
       );
       toast.success(
         restoreSlot

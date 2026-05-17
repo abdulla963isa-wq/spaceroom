@@ -270,10 +270,14 @@ export async function cancelBooking(
   userId: string,
   spaceName: string,
   date: string,
-  restoreSlot = true
+  restoreSlot = true,
+  cancelledBy?: 'admin' | 'owner'
 ) {
   const bookingRef = doc(db, 'bookings', bookingId);
-  await firestoreUpdateDoc(bookingRef, { status: restoreSlot ? 'Cancelled' : 'Blocked' });
+  await firestoreUpdateDoc(bookingRef, {
+    status: restoreSlot ? 'Cancelled' : 'Blocked',
+    ...(cancelledBy && { cancelledBy }),
+  });
 
   await createNotification(
     userId,
