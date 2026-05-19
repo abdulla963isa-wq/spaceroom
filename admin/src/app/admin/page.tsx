@@ -125,7 +125,7 @@ export default function AdminDashboard() {
               <p className="text-text-muted text-xs font-semibold uppercase tracking-widest mb-1">Most Booked Space</p>
               <p className="text-white text-xl font-bold truncate">{mostBookedSpace.name}</p>
               <p className="text-text-secondary text-sm mt-0.5">
-                <span className="text-warning font-semibold">{mostBookedSpace.count}</span> bookings —&nbsp;
+                <span className="text-warning font-semibold">{mostBookedSpace.count}</span>{' '}bookings —&nbsp;
                 <span className="text-text-muted">{mostBookedPct}% of all platform bookings</span>
               </p>
             </div>

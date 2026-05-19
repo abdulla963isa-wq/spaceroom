@@ -36,7 +36,10 @@ const HomeScreen = () => {
   const [locationLoading, setLocationLoading] = useState(true);
 
   useEffect(() => {
-    loadCurrentLocation().catch(() => setLocationLoading(false));
+    loadCurrentLocation().catch(() => {
+      setLocationDenied(true);
+      setLocationLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -67,8 +70,8 @@ const HomeScreen = () => {
   const requestLocationPermission = async (): Promise<boolean> => {
     if (Platform.OS === "ios") {
       try {
-        Geolocation.requestAuthorization();
-        return true;
+        const status = await Geolocation.requestAuthorization("whenInUse");
+        return status === "granted";
       } catch {
         return false;
       }
@@ -152,7 +155,7 @@ const HomeScreen = () => {
 
     if (selectedCategory === "Nearby") {
       return baseMatches
-        .filter((v) => typeof v.distanceKm === "number" && v.distanceKm <= 10)
+        .filter((v) => typeof v.distanceKm === "number" && v.distanceKm <= 5)
         .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
     }
 
@@ -163,8 +166,8 @@ const HomeScreen = () => {
     if (searchQuery.trim() !== "") return `No spaces found for "${searchQuery}"`;
     if (selectedCategory === "Nearby") {
       if (locationLoading) return "Finding nearby spaces…";
-      if (locationDenied) return "Enable location access to show nearby spaces.";
-      return "No nearby spaces found.";
+      if (locationDenied || !currentLocation) return "Enable location access to show nearby spaces.";
+      return "No spaces found within 5 km.";
     }
     return "No spaces found.";
   };
@@ -229,7 +232,7 @@ const HomeScreen = () => {
             })}
           </ScrollView>
 
-          <Text style={styles.sectionTitle}>Featured spaces</Text>
+<Text style={styles.sectionTitle}>Featured spaces</Text>
 
           {filteredVenues.length > 0 ? (
             filteredVenues.map((venue) => (
@@ -239,6 +242,7 @@ const HomeScreen = () => {
                 location={venue.location}
                 type={venue.categories[0] ?? "Work"}
                 image={getImageSource(venue.heroImage)}
+                distanceKm={selectedCategory === "Nearby" ? venue.distanceKm : undefined}
                 onPress={() =>
                   navigation.navigate("SpaceDetails", { venueId: venue.id })
                 }

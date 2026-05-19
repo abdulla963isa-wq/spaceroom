@@ -7,15 +7,23 @@ type SpaceCardProps = {
   location: string;
   type: string;
   image: any;
+  distanceKm?: number;
   onPress?: () => void;
 };
 
-const SpaceCard = ({ title, location, type, image, onPress }: SpaceCardProps) => {
+const SpaceCard = ({ title, location, type, image, distanceKm, onPress }: SpaceCardProps) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <Image source={image} style={styles.image} />
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.cardTitle}>{title}</Text>
+          {distanceKm !== undefined && (
+            <View style={styles.distanceBadge}>
+              <Text style={styles.distanceText}>{distanceKm} km</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.cardSubtitle}>{location}</Text>
         <Text style={styles.cardType}>{type}</Text>
       </View>
@@ -41,10 +49,28 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 16,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   cardTitle: {
     color: COLORS.textPrimary,
     fontSize: 20,
     fontWeight: "700",
+    flex: 1,
+  },
+  distanceBadge: {
+    backgroundColor: COLORS.primary + "22",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  distanceText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "600",
   },
   cardSubtitle: {
     color: COLORS.textSecondary,

@@ -7,8 +7,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { resolveImage } from '@/lib/images';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
-import { Upload, X, ImageIcon } from 'lucide-react';
+import { Upload, X, ImageIcon, MapPin } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
+import MapPickerModal from '@/components/ui/MapPickerModal';
 
 const CATEGORIES = ['Work', 'Meetings', 'Events', 'Studio', 'Training', 'Coworking'];
 
@@ -37,6 +38,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
   const [imagePreview, setImagePreview] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const toggleCategory = (cat: string) => {
     setForm((f) => ({
@@ -260,28 +262,25 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">Latitude</label>
-          <input
-            type="number"
-            step="any"
-            value={form.latitude}
-            onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-            placeholder="26.2235"
-            className="w-full bg-surface2 border border-border rounded-xl px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">Longitude</label>
-          <input
-            type="number"
-            step="any"
-            value={form.longitude}
-            onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-            placeholder="50.5860"
-            className="w-full bg-surface2 border border-border rounded-xl px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">Map Location</label>
+          <button
+            type="button"
+            onClick={() => setMapOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 bg-surface2 border border-border rounded-xl text-sm hover:border-primary transition-all"
+          >
+            <MapPin size={16} className="text-primary flex-shrink-0" />
+            {form.latitude && parseFloat(form.latitude) !== 0 ? (
+              <span className="text-white truncate">
+                {parseFloat(form.latitude).toFixed(5)}, {parseFloat(form.longitude).toFixed(5)}
+              </span>
+            ) : (
+              <span className="text-text-muted">Click to pin location on map…</span>
+            )}
+            <span className="ml-auto text-primary text-xs font-medium flex-shrink-0">
+              {form.latitude && parseFloat(form.latitude) !== 0 ? 'Change' : 'Open Map'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -329,6 +328,22 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
           {loading ? 'Submitting...' : role === 'owner' ? 'Submit for Approval' : isEditing ? 'Update Venue' : 'Create Venue'}
         </button>
       </div>
+
+      <MapPickerModal
+        isOpen={mapOpen}
+        initialLat={parseFloat(form.latitude) || 0}
+        initialLng={parseFloat(form.longitude) || 0}
+        onClose={() => setMapOpen(false)}
+        onConfirm={(lat, lng, address) => {
+          setForm((f) => ({
+            ...f,
+            latitude: lat.toString(),
+            longitude: lng.toString(),
+            location: address || f.location,
+          }));
+          setMapOpen(false);
+        }}
+      />
     </form>
   );
 }

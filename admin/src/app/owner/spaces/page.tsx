@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Space, Venue, PendingChange } from '@/types';
-import { updateDoc, deleteDoc } from '@/lib/firestore';
+import { updateDoc, deleteDoc, submitPendingChange } from '@/lib/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
 import DataTable, { Column } from '@/components/ui/DataTable';
@@ -21,7 +21,7 @@ import SpaceCalendarModal from '@/components/ui/SpaceCalendarModal';
 const PAGE_SIZE = 10;
 
 export default function OwnerSpacesPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,8 +96,15 @@ export default function OwnerSpacesPage() {
 
   const handleToggleActive = async (space: Space) => {
     try {
-      await updateDoc('spaces', space.id, { isActive: !space.isActive });
-      toast.success(`Space ${space.isActive ? 'deactivated' : 'activated'}.`);
+      const ownerName = userProfile?.fullName || user?.email || 'Owner';
+      const changes = { isActive: { from: space.isActive, to: !space.isActive } };
+      await submitPendingChange(
+        'space', 'edit', space.id, space.title,
+        user!.uid, ownerName,
+        changes as Record<string, unknown>,
+        venueMap[space.venueId]
+      );
+      toast.success(`Space ${space.isActive ? 'deactivation' : 'activation'} submitted for admin approval.`);
     } catch {
       toast.error('Failed to update space.');
     }
