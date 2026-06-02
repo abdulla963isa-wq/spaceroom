@@ -5,7 +5,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  FirebaseAuthTypes,
+} from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
 
 type UserProfile = {
@@ -65,7 +72,7 @@ export const AuthProvider = ({
 
   // ✅ LISTEN TO AUTH STATE (SOURCE OF TRUTH)
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged((firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: FirebaseAuthTypes.User | null) => {
       if (pendingLoginRef.current) return;
 
       setUser(firebaseUser);
@@ -95,7 +102,7 @@ export const AuthProvider = ({
         if (!doc.exists()) return;
         const data = doc.data() as UserProfile;
         if (data.isActive === false) {
-          auth().signOut();
+          signOut(getAuth());
         } else {
           setProfile(data);
         }
@@ -110,7 +117,7 @@ export const AuthProvider = ({
     try {
       setLoading(true);
 
-      const cred = await auth().signInWithEmailAndPassword(
+      const cred = await signInWithEmailAndPassword(getAuth(),
         email.trim().toLowerCase(),
         password
       );
@@ -121,7 +128,7 @@ export const AuthProvider = ({
       if (snap.exists()) {
         const data = snap.data();
         if (data?.isActive === false) {
-          await auth().signOut();
+          await signOut(getAuth());
           return { success: false, error: "Your account has been suspended. Please contact support." };
         }
         if (!data?.role) {
@@ -178,7 +185,7 @@ export const AuthProvider = ({
       setLoading(true);
 
       const userCredential =
-        await auth().createUserWithEmailAndPassword(
+        await createUserWithEmailAndPassword(getAuth(),
           email.trim().toLowerCase(),
           password
         );
@@ -203,9 +210,9 @@ export const AuthProvider = ({
         });
 
       // 🔁 Force refresh user so UI updates immediately
-      await auth().currentUser?.reload();
+      await getAuth().currentUser?.reload();
 
-      setUser(auth().currentUser);
+      setUser(getAuth().currentUser);
 
       setIsGuest(false);
 
@@ -236,7 +243,7 @@ export const AuthProvider = ({
   // 🚪 LOGOUT
   const logout = async () => {
     try {
-      await auth().signOut();
+      await signOut(getAuth());
     } catch (e) {
       console.log("Logout error:", e);
     } finally {

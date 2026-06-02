@@ -18,12 +18,14 @@ import SpaceCard from "../components/SpaceCard";
 import { COLORS } from "../constants/colors";
 import type { Venue } from "../types/venue";
 import { getDistanceKm, getImageSource } from "../utils/helpers";
+import { useAuth } from "../context/AuthContext";
 
 const categories = ["All", "Nearby", "Work", "Study", "Meetings", "Events"];
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,6 +45,11 @@ const HomeScreen = () => {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setVenues([]);
+      return;
+    }
+
     const unsubscribe = firestore()
       .collection("venues")
       .where("isActive", "==", true)
@@ -65,7 +72,7 @@ const HomeScreen = () => {
       );
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const requestLocationPermission = async (): Promise<boolean> => {
     if (Platform.OS === "ios") {

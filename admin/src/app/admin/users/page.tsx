@@ -205,7 +205,7 @@ export default function AdminUsersPage() {
 
       toast.success('User created successfully. They can now log in.');
       setShowAddModal(false);
-      setAddForm({ fullName: '', email: '', password: '', phoneNumber: '', role: 'customer', venueId: '' });
+      setAddForm({ fullName: '', email: '', password: '', phoneNumber: '', dateOfBirth: '', role: 'customer', venueId: '' });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create user.';
       // Show multi-line errors in a more readable way via console + short toast
@@ -431,7 +431,7 @@ export default function AdminUsersPage() {
           )}
           <div className="flex gap-3 pt-1">
             <button
-              onClick={() => { setShowAddModal(false); setAddForm({ fullName: '', email: '', password: '', phoneNumber: '', role: 'customer', venueId: '' }); }}
+              onClick={() => { setShowAddModal(false); setAddForm({ fullName: '', email: '', password: '', phoneNumber: '', dateOfBirth: '', role: 'customer', venueId: '' }); }}
               className="flex-1 py-2.5 rounded-xl border border-border text-text-secondary hover:bg-surface2 text-sm"
             >
               Cancel

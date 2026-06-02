@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, role } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,19 +24,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
-      // Role is set by AuthContext; wait briefly for userProfile to load
-      // Redirect based on role will happen via root page or we read from context
       toast.success('Signed in successfully!');
-      // Give AuthContext a moment to update role
-      setTimeout(() => {
-        if (role === 'admin') {
-          router.replace('/admin');
-        } else if (role === 'owner') {
-          router.replace('/owner');
-        } else {
-          router.replace('/');
-        }
-      }, 500);
+      router.replace('/');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Login failed';
       if (msg.includes('wrong-password') || msg.includes('user-not-found') || msg.includes('invalid-credential')) {
